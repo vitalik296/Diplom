@@ -53,7 +53,7 @@ int storage_write(storage_t* stor, void * buffer, size_t byte_count, int block_o
     return (int) write(stor->descriptor, buffer, byte_count);
 }
 
-STATUS storage_seek(storage_t* stor,int seek){
+STATUS storage_seek(storage_t* stor, int seek){
     // at the moment i don't now how this function have to work
     stor->seek = seek;
     return (short) lseek(stor->descriptor, stor->seek, SEEK_SET);
