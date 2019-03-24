@@ -41,16 +41,17 @@ void storage_destroy(storage_t* storage_to_delete){
     free(storage_to_delete);
 }
 
-int storage_read(storage_t* stor, void * buffer, size_t byte_count, int block_offset, int in_block_offset){
+int storage_read(storage_t* stor, buffer_t * buffer){
     // Reads a given bytes num with a given offset
-    lseek(stor->descriptor, block_offset*stor->block_size+in_block_offset, SEEK_SET);
-    return (int) read(stor->descriptor, buffer, byte_count);
+    lseek(stor->descriptor,buffer->block_offset*stor->block_size+buffer->in_block_offset, SEEK_SET);
+    return (int) read(stor->descriptor, buffer->buffer, buffer->buffer_size);
 }
 
-int storage_write(storage_t* stor, void * buffer, size_t byte_count, int block_offset, int in_block_offset){
+int storage_write(storage_t* stor, buffer_t * buffer){
     // Writes a given data with a given offset
-    lseek(stor->descriptor, block_offset*stor->block_size+in_block_offset, SEEK_SET);
-    return (int) write(stor->descriptor, buffer, byte_count);
+    lseek(stor->descriptor, buffer->block_offset*stor->block_size+buffer->in_block_offset, SEEK_SET);
+    stor->filled_memory += buffer->buffer_size;
+    return (int) write(stor->descriptor, buffer->buffer, buffer->buffer_size);
 }
 
 STATUS storage_seek(storage_t* stor, int seek){

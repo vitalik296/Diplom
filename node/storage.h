@@ -16,10 +16,17 @@ typedef struct __storage_s{
     int descriptor;
 } storage_t;
 
+typedef struct{
+    size_t buffer_size;
+    void* buffer;
+    int block_offset;
+    int in_block_offset;
+} buffer_t;
+
 storage_t* storage_init();
 void storage_destroy(storage_t* storage_to_delete);
-int storage_read(storage_t* stor, void * buffer, size_t byte_count, int block_offset, int in_block_offset);
-int storage_write(storage_t* stor, void * buffer, size_t byte_count, int block_offset, int in_block_offset);
+int storage_read(storage_t* stor, buffer_t * buffer);
+int storage_write(storage_t* stor, buffer_t * buffer);
 STATUS storage_seek(storage_t* stor,int seek);
 
 

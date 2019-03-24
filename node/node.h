@@ -1,7 +1,3 @@
-//
-// Created by Zaharchenko on 11.03.2019.
-//
-
 #ifndef DIPLOM_NODE_H
 #define DIPLOM_NODE_H
 
@@ -17,7 +13,6 @@ typedef struct {
     struct sockaddr_in * node_sock;
     SOCKET node_descriptor;
 } node_t;
-
 
 node_t* node_init();
 void node_create(node_t* node, int port);

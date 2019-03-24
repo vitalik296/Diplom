@@ -48,15 +48,6 @@ void node_free(node_t* node) {
     free(node);
 }
 
-
-
-void node_write(node_t* node, void* buffer, size_t byte_count, int block_offset, int in_block_offset) {
-    // ONLY FOR TEST!!
-    storage_write(node->storage, buffer, byte_count, block_offset, in_block_offset);
-}
-
-void node_read(node_t* node, void* buffer, size_t byte_count, int block_offset, int in_block_offset) {
-    // ONLY FOR TEST!!
-    storage_read(node->storage, buffer, byte_count, block_offset, in_block_offset);
+void node_parse(node_t* node, void* buff){
 
 }

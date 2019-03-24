@@ -3,13 +3,20 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "storage.h"
 #include "node.h"
+#include "utils.h"
 
-int main() {
-    void * test_buff = malloc(1024*sizeof(char));
-    node_t* node = node_init();
+
+int main(void) {
+    void * test_buff;
+    node_t* node;
+
+    test_buff = malloc(1024*sizeof(char));
+    node = node_init();
+
     node_create(node, 0);
     node_bind(node);
     node_listen(node);
@@ -23,6 +30,5 @@ int main() {
     free(test_buff);
     node_free(node);
     close(client);
-
     return 0;
 }

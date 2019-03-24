@@ -32,8 +32,6 @@ int socket_create_tcp() {
 struct sockaddr_in* socket_addr_init(int family, char* ip, unsigned short port) {
     struct sockaddr_in* addr = malloc(sizeof(struct sockaddr_in));
 
-    bzero(&addr, sizeof(addr));
-
     addr->sin_family = (sa_family_t) family;
     addr->sin_addr.s_addr = inet_addr(ip);
     addr->sin_port = htons(port);
