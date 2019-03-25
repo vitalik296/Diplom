@@ -2,7 +2,7 @@
 #define UTILS_LIBRARY_H
 
 #include <stdlib.h>
-
+// QUEUE PART
 typedef void* method_t(void* this,...);
 
 typedef struct queue_node_s{
@@ -25,8 +25,20 @@ typedef struct{
 
 queue_t* queue_init();
 
+// LOGGER PART
+#define DEFAULT_LOG "diplom.log"
 
+typedef enum {INFO, WARNING, ERROR} log_type;
 
+typedef struct{
+    int log_d;
+    method_t* write_log;
+    method_t* destroy;
+}logger_t;
+
+logger_t* logger_init(char* path_name);
+
+// COMMON PART
 void throw(void);
 
 #endif
