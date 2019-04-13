@@ -51,38 +51,58 @@ void socket_listen(int sockfd, int backlog) {
     }
 }
 
-int socket_accept(int sockfd, struct sockaddr* client_addr, int* addr_len) {
+int socket_accept(int sockfd, struct sockaddr_in* addr, size_t* addr_len) {
     int client_fd;
 
-    if ((client_fd = (unsigned int) accept(sockfd, client_addr, (socklen_t *) addr_len)) < 0) {
+    if ((client_fd = accept(sockfd, (struct sockaddr*) addr, (socklen_t*) addr_len)) < 0) {
         throw();
     }
 
     return client_fd;
 }
 
-void socket_connect(int sockfd, struct sockaddr_in* addr, int addr_len) {
-    if (connect(sockfd, (struct sockaddr *) addr, (socklen_t) addr_len) < 0) {
+void socket_connect(int sockfd, struct sockaddr_in* addr) {
+    if (connect(sockfd, (struct sockaddr*) addr, sizeof(struct sockaddr)) < 0) {
         throw();
     }
 }
 
-int socket_write(int sockfd, const void* buf, int buf_size) {
+ssize_t socket_write(int sockfd, const void* buf, size_t buf_size) {
     ssize_t size;
 
-    if ((size = write(sockfd, buf, (size_t) buf_size)) < 0) {
+    if ((size = write(sockfd, buf, buf_size)) < 0) {
         throw();
     }
 
-    return (int) size;
+    return size;
 }
 
-int socket_read(int sockfd, void* buf, int buf_size) {
+ssize_t socket_read(int sockfd, void* buf, size_t buf_size) {
     ssize_t size;
 
-    if ((size = read(sockfd, buf, (size_t) buf_size)) < 0) {
+    if ((size = read(sockfd, buf, buf_size)) < 0) {
         throw();
     }
 
-    return (int) size;
+    return size;
+}
+
+ssize_t socket_sendto(int sockfd, const void* buf, size_t buf_size, struct sockaddr_in* addr) {
+    ssize_t size;
+
+    if ((size = sendto(sockfd, buf, buf_size, 0, (const struct sockaddr*) addr, sizeof(struct sockaddr))) < 0) {
+        throw();
+    }
+
+    return size;
+}
+
+ssize_t socket_recvfrom(int sockfd, void* buf, size_t buf_size, struct sockaddr_in* addr, size_t* addr_len) {
+    ssize_t size;
+
+    if ((size = recvfrom(sockfd, buf, buf_size, 0, (struct sockaddr*) addr, (socklen_t*) addr_len)) < 0) {
+        throw();
+    }
+
+    return size;
 }
