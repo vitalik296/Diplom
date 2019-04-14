@@ -1,89 +1,114 @@
-#include "protocol.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <stdint.h>
+#include <pthread.h>
+#include <netinet/in.h>
+#include <libsocket.h>
 
-#define BUFFER_SIZE 512
+#include "protocol.h"
 
-#define TRANSFER_BUFFER_SIZE 4800
-#define PDU_SIZE 120
-#define MSS_SIZE 60
-#define PDU_HEADER 40
-#define L2_HEADER_SIZE 20
-#define FILE_EXIST_ERROR 17
-#define RESPONSE_BUFFER_SIZE 5
-
-#define POLINOM 0x8005
 #define TTR 16
 
-#define MAX_DATA_SIZE 512
+#define THREAD_COUNT 4
 
-//#define HEADER_SIZE 113
-#define HEADER_SIZE 15
+#define MIDDLE_WRITE_IP "0.0.0.0"
+#define MIDDLE_WRITE_PORT 8888
 
-//uint16_t crc16(uint16_t crc, uint8_t* a, size_t len) {
-//    while (len--) {
-//        crc ^= *a++;
-//        for (int i = 0; i < 8; ++i) {
-//            crc = (uint16_t) (crc & 1 ? (crc >> 1) ^ POLINOM : crc >> 1);
-//        }
-//    }
-//    return crc;
-//}
+#include "utils.h"
+#include "udp.h"
 
-void pack(void* package, size_t package_size);
+logger_t* logger;
+queue_t* w_queue;
 
-uint16_t* crc16(uint8_t* a, size_t len) {
-    uint16_t* crc = malloc(2);
-    memset(crc, 0, 2);
+pthread_mutex_t w_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t w_cond = PTHREAD_COND_INITIALIZER;
 
-    while (len--) {
-        *crc ^= *a++;
-        for (int i = 0; i < 8; ++i) {
-            *crc = (uint16_t) (*crc & 1 ? (*crc >> 1) ^ POLINOM : *crc >> 1);
+typedef enum { SUCCESS, FAILURE } status;
+
+typedef struct {
+    int32_t index;
+    status status;
+} answer_t;
+
+status secure_sendto(int server_fd, const void* data, size_t size, struct sockaddr_in* client_addr) {
+    for (int ttr = 0; ttr < TTR; ttr++) {
+        if (socket_sendto(server_fd, data, size, client_addr) < 0) {
+            logger->write_log(logger, "Can not send to client", WARNING); // socket_sendto have logger too !?
+        } else {
+            return 0;
         }
     }
 
-    return crc;
+    return -1;
 }
 
-void protocol_transmit(void* data, size_t size) {
-    void* package = data;
+void w_worker(queue_t* queue) {
+    struct sockaddr_in server_addr;
+    int server_fd = udp_create_connection(&server_addr);
 
-    do {
-        size_t package_size = (size < MAX_DATA_SIZE) ? size : MAX_DATA_SIZE;
-        pack(package, package_size);
-        package += package_size;
-        size -= package_size;
-    } while (size > 0);
+    size_t addr_len;
+    struct sockaddr_in* client_addr = socket_addr_init(AF_INET, MIDDLE_WRITE_IP, MIDDLE_WRITE_PORT);
+
+    while (1) {
+        todo;
+
+        // dequeue
+
+        pthread_mutex_lock(&w_mutex);
+
+        while (!queue->size) {
+            pthread_cond_wait(&w_cond, &w_mutex);
+        }
+
+        queue_node_t* node = queue->dequeue(queue);
+
+        pthread_mutex_unlock(&w_mutex);
+
+        // requests
+
+        for (int ttr = 0; ttr < TTR; ttr++) {
+            if (secure_sendto(server_fd, node->data, node->data_size, client_addr) < 0) {
+                logger->write_log(logger, "Can not send to client (secure)", WARNING);
+                continue;
+            }
+
+            answer_t answer; // ?
+
+            socket_recvfrom(server_fd, &answer, sizeof(answer), client_addr, &addr_len);
+
+            if (answer.status == SUCCESS) {
+                break;
+            }
+
+            if (ttr + 1 == TTR) {
+                char* error = "Can not send or receive package to/from client";
+                logger->write_log(logger, error, WARNING);
+            }
+        }
+    }
 }
 
-void pack(void* package, size_t package_size) {
+int main() {
+    logger = logger_init(NULL);
+    w_queue = queue_init();
 
-}
+    pthread_t w_threads[THREAD_COUNT];
 
-void transmitter_layer2(int32_t node, void* data, size_t size, int last) {
-    size_t package_size = HEADER_SIZE + size;
-    void* package = malloc(package_size);
-    memset(package, 0, package_size);
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        if (pthread_create(&w_threads[i], NULL, &w_worker, w_queue) != 0) {
+            throw();
+        }
+    }
 
-    memcpy(package, node, 4);
-    memcpy(package + 4, package_n, 4);
-    memcpy(package + 8, end, 1); // lframe
-    memcpy(package + 11, size, 4);
-    memcpy(package + 15, data, size);
+    // fuse_main();
 
-    uint16_t* checksum = crc16(package, package_size);
-    memcpy(package + 9, checksum, 2);
-    free(checksum);
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        pthread_join(w_threads[i], NULL);
+    }
 
-    transmitter_layer1();
+    w_queue->destroy(w_queue);
+    logger->destroy(logger);
 
-    free(package);
-}
-
-void transmitter_layer1() {
-
+    return EXIT_SUCCESS;
 }

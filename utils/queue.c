@@ -8,9 +8,7 @@
 #include "utils.h"
 
 
-
-queue_node_t* queue_node_create(void* data, size_t data_size)
-{
+queue_node_t* queue_node_create(void* data, size_t data_size) {
     queue_node_t* node = malloc(sizeof(queue_node_t));
 
     node->data_size = data_size;
@@ -22,19 +20,16 @@ queue_node_t* queue_node_create(void* data, size_t data_size)
     return node;
 }
 
-void queue_node_destroy(queue_node_t* node){
+void queue_node_destroy(queue_node_t* node) {
     node->prev_node = node->next_node = NULL;
     free(node->data);
     free(node);
 }
 
-void enqueue(queue_t* queue, void* data, size_t data_size){
+void enqueue(queue_t* queue, void* data, size_t data_size) {
     queue_node_t* new_node = queue_node_create(data, data_size);
 
-    queue->size++;
-
-    if (queue->head == NULL)
-    {
+    if (queue->head == NULL) {
         queue->head = queue->tail = new_node;
         return;
     }
@@ -43,9 +38,10 @@ void enqueue(queue_t* queue, void* data, size_t data_size){
     queue->head->prev_node = new_node;
     queue->head = new_node;
 
+    queue->size++;
 }
 
-queue_node_t* dequeue(queue_t* queue){
+queue_node_t* dequeue(queue_t* queue) {
 
     if (queue->tail == NULL)
         return NULL;
@@ -54,9 +50,9 @@ queue_node_t* dequeue(queue_t* queue){
 
     queue_node_t* del_node = queue->tail;
 
-    if (queue->size == 0){
+    if (queue->size == 0) {
         queue->tail = queue->head = NULL;
-    }else {
+    } else {
         del_node->prev_node->next_node = NULL;
         queue->tail = queue->tail->prev_node;
         del_node->prev_node = NULL;
@@ -66,20 +62,20 @@ queue_node_t* dequeue(queue_t* queue){
 
 }
 
-void destroy(queue_t* queue){
-    while(queue->size > 0)
+void destroy(queue_t* queue) {
+    while (queue->size > 0)
         queue_node_destroy(queue->dequeue(queue));
 
     free(queue);
 }
 
-queue_t* queue_init(){
-    queue_t * queue = malloc(sizeof(queue_t));
+queue_t* queue_init() {
+    queue_t* queue = malloc(sizeof(queue_t));
     queue->head = queue->tail = NULL;
     queue->size = 0;
 
-    queue->enqueue = (method_t*)enqueue;
-    queue->dequeue = (method_t*)dequeue;
-    queue->destroy = (method_t*)destroy;
+    queue->enqueue = (method_t*) enqueue;
+    queue->dequeue = (method_t*) dequeue;
+    queue->destroy = (method_t*) destroy;
     return queue;
 }
