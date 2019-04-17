@@ -82,7 +82,7 @@ request_t* request_init(operations operation, void* data, size_t size) {
     return request;
 }
 
-void request_serialize(request_t* request, char* buffer);
+//void request_serialize(request_t* request, char* buffer);
 
 request_t* request_deserialize(char* filepath);
 

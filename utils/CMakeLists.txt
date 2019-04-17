@@ -3,4 +3,7 @@ project(utils C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_library(utils utils.c utils.h queue.c logger.c)
+link_directories(libs)
+include_directories(includes)
+
+add_library(utils utils.h libs/common.c includes/common.h libs/queue.c libs/logger.c libs/libsocket.c includes/libsocket.h includes/logger.h libs/protocol.c includes/protocol.h includes/queue.h libs/common.c includes/common.h)

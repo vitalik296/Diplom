@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils.h"
+#include "queue.h"
 
 
 queue_node_t* queue_node_create(void* data, size_t data_size) {
@@ -31,6 +31,7 @@ void enqueue(queue_t* queue, void* data, size_t data_size) {
 
     if (queue->head == NULL) {
         queue->head = queue->tail = new_node;
+        queue->size++;
         return;
     }
 
@@ -62,7 +63,7 @@ queue_node_t* dequeue(queue_t* queue) {
 
 }
 
-void destroy(queue_t* queue) {
+void queue_destroy(queue_t* queue) {
     while (queue->size > 0)
         queue_node_destroy(queue->dequeue(queue));
 
@@ -76,6 +77,6 @@ queue_t* queue_init() {
 
     queue->enqueue = (method_t*) enqueue;
     queue->dequeue = (method_t*) dequeue;
-    queue->destroy = (method_t*) destroy;
+    queue->destroy = (method_t*) queue_destroy;
     return queue;
 }

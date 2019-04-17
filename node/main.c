@@ -5,7 +5,8 @@
 #include <unistd.h>
 
 #include <signal.h>
-#include <utils.h>
+
+#include "utils.h"
 
 
 //#include "storage.h"
@@ -13,9 +14,17 @@
 //
 //#include "server.h"
 
-#include "interaction.h"
+//#include "interaction.h"
 
 int main(void) {
+
+    queue_t* queue = queue_init();
+
+    char* test ="skdfsdoiufoiaufjmxc,nvbv;reoiugiofdghxcklhgjbiruheioghzxg,mznvlierhughbvkjdfshgreiugkjfhgjskdfgh,mbvn,dfnsglkureltugkjmcnvbjkdfh";
+
+    transmit_data(test, strlen(test), 0, queue, NULL);
+
+    queue->destroy(queue);
 
     logger_t* logger = logger_init(NULL);
 
