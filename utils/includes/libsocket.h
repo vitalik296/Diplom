@@ -1,7 +1,13 @@
-#ifndef LIBSOCKET_LIBRARY_H
-#define LIBSOCKET_LIBRARY_H
+//
+// Created by Zaharchenko on 17.04.2019.
+//
 
-#include "utils.h"
+#ifndef UTILS_LIBSOCKET_H
+#define UTILS_LIBSOCKET_H
+
+#include <sys/types.h>
+
+#include "common.h"
 
 #define GATEWAY "0.0.0.0"
 
@@ -18,4 +24,4 @@ ssize_t socket_read(int sockfd, void* buf, size_t buf_size);
 ssize_t socket_sendto(int sockfd, const void* buf, size_t buf_size, struct sockaddr_in* addr);
 ssize_t socket_recvfrom(int sockfd, void* buf, size_t buf_size, struct sockaddr_in* addr, size_t* addr_len);
 
-#endif
+#endif //UTILS_LIBSOCKET_H

@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-#include <stdio.h>
+#include <stdlib.h>
 
-#include "utils.h"
+#include "logger.h"
 
 void create_log_text(char* log_text, char* user_text, char* time, char* type) {
     strcpy(log_text, type);
@@ -50,7 +50,7 @@ void write_log(logger_t* this, char* text, log_type type) {
 
 }
 
-void destroy(logger_t* this) {
+void logger_destroy(logger_t* this) {
     close(this->log_d);
     free(this);
 }
@@ -66,7 +66,7 @@ logger_t* logger_init(char* path_name) {
         logger->log_d = open(path_name, O_CREAT | O_RDWR | O_APPEND, 0777);
 
     logger->write_log = (method_t*) write_log;
-    logger->destroy = (method_t*) destroy;
+    logger->destroy = (method_t*) logger_destroy;
 
     return logger;
 }

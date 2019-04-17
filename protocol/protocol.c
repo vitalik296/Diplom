@@ -43,16 +43,17 @@ status secure_sendto(int server_fd, const void* data, size_t size, struct sockad
     return -1;
 }
 
-void w_worker(queue_t* queue) {
-    struct sockaddr_in server_addr;
-    int server_fd = udp_create_connection(&server_addr);
+void* w_worker(queue_t* queue) {
+    struct sockaddr_in* server_addr;
+    int server_fd = socket_create_udp();
+    server_addr = socket_addr_init(AF_INET, GATEWAY, 0);
+    socket_bind(server_fd, server_addr);
 
     size_t addr_len;
     struct sockaddr_in* client_addr = socket_addr_init(AF_INET, MIDDLE_WRITE_IP, MIDDLE_WRITE_PORT);
 
     while (1) {
         todo
-
         // dequeue
 
         pthread_mutex_lock(&w_mutex);
@@ -89,26 +90,26 @@ void w_worker(queue_t* queue) {
     }
 }
 
-int main() {
-    logger = logger_init(NULL);
-    w_queue = queue_init();
-
-    pthread_t w_threads[THREAD_COUNT];
-
-    for (int i = 0; i < THREAD_COUNT; i++) {
-        if (pthread_create(&w_threads[i], NULL, &w_worker, w_queue) != 0) {
-            throw();
-        }
-    }
-
-    // fuse_main();
-
-    for (int i = 0; i < THREAD_COUNT; i++) {
-        pthread_join(w_threads[i], NULL);
-    }
-
-    w_queue->destroy(w_queue);
-    logger->destroy(logger);
-
-    return EXIT_SUCCESS;
-}
+//int main() {
+//    logger = logger_init(NULL);
+//    w_queue = queue_init();
+//
+//    pthread_t w_threads[THREAD_COUNT];
+//
+//    for (int i = 0; i < THREAD_COUNT; i++) {
+//        if (pthread_create(&w_threads[i], NULL, (void* (*)(void*)) &w_worker, w_queue) != 0) {
+//            throw();
+//        }
+//    }
+//
+//    // fuse_main();
+//
+//    for (int i = 0; i < THREAD_COUNT; i++) {
+//        pthread_join(w_threads[i], NULL);
+//    }
+//
+//    w_queue->destroy(w_queue);
+//    logger->destroy(logger);
+//
+//    return EXIT_SUCCESS;
+//}

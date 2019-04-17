@@ -1,14 +1,12 @@
-#include "utils.h"
+//
+// Created by Zaharchenko on 17.04.2019.
+//
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
+#include <stdio.h>
+#include <memory.h>
 
-void throw(void) {
-    perror(strerror(errno));
-    exit(EXIT_FAILURE);
-}
+#include "protocol.h"
 
 uint16_t* crc16(uint8_t* a, size_t len) {
     uint16_t* crc = malloc(2);
@@ -31,14 +29,18 @@ void data_decorator(void* data, uint32_t size, queue_t* queue, uint8_t is_last, 
     memcpy(package + 4, &pack_num, 4);
     memcpy(package + 8, &is_last, 1); // lframe
 
-    uint16_t* checksum = crc16(package, size);
-    memcpy(package + 9, checksum, 2);
-    free(checksum);
 
     memcpy(package + 11, &size, 4);
     memcpy(package + 15, data, size);
 
+    uint16_t* checksum = crc16(package, size);
+    memcpy(package + 9, checksum, 2);
+    free(checksum);
+
+
     queue->enqueue(queue, package, MAX_DATA_SIZE + HEADER_SIZE);
+
+
 
     free(package);
 
@@ -55,8 +57,7 @@ void transmit_data(void* data, size_t size, int fd, queue_t* queue, void* hash_t
         if (size > MAX_DATA_SIZE) {
             package_size = MAX_DATA_SIZE;
             is_last = 0;
-        }
-        else {
+        } else {
             package_size = size;
             is_last = 1;
         }
