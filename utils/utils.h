@@ -6,10 +6,9 @@
 
 #include "common.h"
 #include "queue.h"
-#include "protocol.h"
 #include "logger.h"
 #include "libsocket.h"
-
+#include "protocol.h"
 
 
 #endif
