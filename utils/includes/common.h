@@ -5,6 +5,7 @@
 #ifndef UTILS_COMMON_H
 #define UTILS_COMMON_H
 
+typedef enum { false, true } bool;
 typedef void* method_t(void* this, ...);
 
 void throw(void);

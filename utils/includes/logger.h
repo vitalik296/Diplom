@@ -20,5 +20,6 @@ typedef struct {
 } logger_t;
 
 logger_t* logger_init(char* path_name);
+void write_log(logger_t* this, char* text, log_type type);
 
 #endif //UTILS_LOGGER_H

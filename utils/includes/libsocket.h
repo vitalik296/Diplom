@@ -11,9 +11,12 @@
 
 #define GATEWAY "0.0.0.0"
 
+typedef struct sockaddr_in address_t;
+
 int socket_create(int type);
 int socket_create_udp();
 int socket_create_tcp();
+int socket_timeout(int sockfd, uint32_t sec, uint32_t usec);
 struct sockaddr_in* socket_addr_init(int family, char* ip, unsigned short port);
 void socket_bind(int sockfd, struct sockaddr_in* addr);
 void socket_listen(int sockfd, int backlog);

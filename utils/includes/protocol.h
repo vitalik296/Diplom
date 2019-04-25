@@ -1,7 +1,3 @@
-//
-// Created by Zaharchenko on 17.04.2019.
-//
-
 #ifndef UTILS_PROTOCOL_H
 #define UTILS_PROTOCOL_H
 
@@ -12,24 +8,63 @@
 #include "libsocket.h"
 
 #define MAX_DATA_SIZE 50
-#define HEADER_SIZE 15
-#define RESPONSE_BUFFER_SIZE 5
+#define PACKAGE_SIZE MAX_DATA_SIZE+MAX_DATA_SIZE
 #define TTR 16
 #define POLINOM 0x8005
-#define THREAD_COUNT 4
-#define MIDDLE_WRITE_IP "0.0.0.0"
-#define MIDDLE_WRITE_PORT 8888
 
-typedef enum { SUCCESS, FAILURE } status;
+typedef enum { FAILURE, SUCCESS } status;
 
 typedef struct {
-    int32_t index;
-    status status;
-} answer_t;
+    pthread_t* threads;
+    size_t number;
+    queue_t* queue;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    address_t* address;
+    logger_t* logger;
+} protocol_t;
 
-void transmit_data(void* data, size_t size, int fd, queue_t* queue, void* hash_table);
-status secure_sendto(int server_fd, const void* data, size_t size, struct sockaddr_in* client_addr);
-void* w_worker(queue_t* queue);
+/* // HOW USE
+ *
+ * logger_t* logger = logger_init(NULL);
+ *
+ * protocol_t* protocol = protocol_init(THREAD_COUNT, MIDDLE_IP, MIDDLE_WRITE_PORT, logger);
+ *
+ *
+ * // client
+ * protocol_start(protocol, protocol_transmitter);
+ * protocol_transmit(protocol, fd, buffer, size);
+ *
+ * // server
+ * protocol_start(protocol, my_worker);
+ * protocol_receiver_start(protocol);
+ *
+ *
+ * protocol_stop(protocol);
+ *
+ * protocol_destroy(protocol);
+ *
+ * free(logger);
+ */
 
+// crc16 //
+uint16_t crc16(uint8_t* a, size_t len);
+
+// protocol //
+protocol_t* protocol_init(size_t number, char* ip, ushort port, logger_t* logger);
+void protocol_start(protocol_t* protocol, void* worker);
+void protocol_stop(protocol_t* protocol);
+void protocol_destroy(protocol_t* protocol);
+
+// queue //
+void protocol_enqueue_package(protocol_t* protocol, void* package, uint32_t size);
+queue_node_t* protocol_dequeue_node(protocol_t* protocol);
+
+// transmitter //
+void protocol_transmit(protocol_t* protocol, uint32_t fd, void* data, uint32_t size);
+void protocol_transmitter(protocol_t* protocol);
+
+// receiver //
+void protocol_receiver_start(protocol_t* protocol);
 
 #endif //UTILS_PROTOCOL_H

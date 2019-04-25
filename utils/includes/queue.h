@@ -29,4 +29,6 @@ typedef struct {
 
 queue_t* queue_init();
 
+void queue_node_destroy(queue_node_t* node);
+
 #endif //UTILS_QUEUE_H
