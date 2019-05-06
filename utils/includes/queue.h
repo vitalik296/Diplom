@@ -18,4 +18,6 @@ void queue_destroy(queue_t* queue);
 void enqueue(queue_t* queue, void* data, size_t data_size);
 queue_node_t* dequeue(queue_t* queue);
 
+void queue_node_destroy(queue_node_t* node);
+
 #endif //UTILS_QUEUE_H

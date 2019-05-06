@@ -7,6 +7,7 @@
 
 #define POLINOM 0x8005
 
+typedef enum { false, true } bool;
 typedef void* method_t(void* this, ...);
 
 void throw(void);

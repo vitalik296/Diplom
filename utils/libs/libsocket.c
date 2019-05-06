@@ -29,6 +29,11 @@ int socket_create_tcp() {
     return socket_create(SOCK_STREAM);
 }
 
+int socket_timeout(int sockfd, uint32_t sec, uint32_t usec) {
+    struct timeval tv = { sec, usec };
+    return setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+}
+
 struct sockaddr_in* socket_addr_init(int family, char* ip, unsigned short port) {
     struct sockaddr_in* addr = malloc(sizeof(struct sockaddr_in));
 

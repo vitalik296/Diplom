@@ -1,127 +1,222 @@
-//
-// Created by Zaharchenko on 17.04.2019.
-//
-
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <memory.h>
 #include <pthread.h>
 #include <netinet/in.h>
 
 #include "protocol.h"
 
-logger_t* logger;
+// protocol //
 
-pthread_mutex_t w_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t w_cond = PTHREAD_COND_INITIALIZER;
+protocol_t* protocol_init(size_t number, char* ip, ushort port, logger_t* logger) {
+    protocol_t* protocol = malloc(sizeof(protocol_t));
 
+    protocol->threads = malloc(number * sizeof(pthread_t));
+    protocol->number = number;
+    protocol->queue = queue_init();
+    pthread_mutex_init(&protocol->mutex, NULL);
+    pthread_cond_init(&protocol->cond, NULL);
+    protocol->address = socket_addr_init(AF_INET, ip, port);
+    protocol->logger = logger;
 
+    return protocol;
+};
 
-
-void data_decorator(void* data, uint32_t size, queue_t* queue, uint8_t is_last, uint32_t fd, uint32_t pack_num) {
-    void* package = malloc(MAX_DATA_SIZE + HEADER_SIZE);
-
-    memcpy(package, &fd, 4);
-    memcpy(package + 4, &pack_num, 4);
-    memcpy(package + 8, &is_last, 1); // lframe
-
-
-    memcpy(package + 11, &size, 4);
-    memcpy(package + 15, data, size);
-
-    uint16_t* checksum = hash_function(package, size);
-    memcpy(package + 9, checksum, 2);
-    free(checksum);
-
-
-    enqueue(queue, package, MAX_DATA_SIZE + HEADER_SIZE);
-
-
-
-    free(package);
-
+void protocol_start(protocol_t* protocol, void* worker) {
+    for (int i = 0; i < protocol->number; i++) {
+        if (pthread_create(&protocol->threads[i], NULL, (void* (*)(void*)) worker, protocol) != 0) {
+            throw();
+        }
+    }
+}
+void protocol_stop(protocol_t* protocol) {
+    for (int i = 0; i < protocol->number; i++) {
+        pthread_cancel(protocol->threads[i]);
+    }
 }
 
-void transmit_data(void* data, size_t size, int fd, queue_t* queue, hashtable_t* hash_table) {
-    void* package_data = malloc(MAX_DATA_SIZE);
-    size_t package_size;
+
+void protocol_destroy(protocol_t* protocol) {
+    free(protocol->threads);
+    queue_destroy(protocol->queue);
+    pthread_mutex_destroy(&protocol->mutex);
+    pthread_cond_destroy(&protocol->cond);
+    free(protocol->address);
+    free(protocol);
+}
+// queue //
+
+void protocol_enqueue_package(protocol_t* protocol, void* package, uint32_t size) {
+    pthread_mutex_lock(&protocol->mutex);
+
+    enqueue(protocol->queue, package, size);
+
+    pthread_cond_signal(&protocol->cond);
+
+    pthread_mutex_unlock(&protocol->mutex);
+}
+
+queue_node_t* protocol_dequeue_node(protocol_t* protocol) {
+    pthread_mutex_lock(&protocol->mutex);
+
+    while (!protocol->queue->size) {
+        pthread_cond_wait(&protocol->cond, &protocol->mutex);
+    }
+
+    queue_node_t* node = dequeue(protocol->queue);
+
+    pthread_mutex_unlock(&protocol->mutex);
+
+    return node;
+}
+
+// transmitter //
+
+void pack(void* package, uint32_t fd, void* data, uint32_t size, uint32_t number, uint8_t latest) {
     size_t offset = 0;
-    uint32_t pack_num = (uint32_t) hashtable_get(hash_table, &fd, sizeof(int))->value;
-    uint8_t is_last = 0;
+    memcpy(package + offset, &fd, sizeof(fd));
+
+    offset += sizeof(fd);
+    memcpy(package + offset, &number, sizeof(number));
+
+    offset += sizeof(number);
+    memcpy(package + offset, &latest, sizeof(latest));
+
+    offset += sizeof(latest);
+    memcpy(package + offset, &size, sizeof(size));
+
+    offset += sizeof(size);
+    memcpy(package + offset, data, size);
+
+    offset = PACKAGE_SIZE - sizeof(uint16_t);
+    uint16_t checksum = crc16(package, offset);
+    memcpy(package + offset, &checksum, sizeof(checksum));
+}
+
+void protocol_transmit(protocol_t* protocol, uint32_t fd, void* data, uint32_t size, hashtable_t* hashtable) {
+    void* package = malloc(PACKAGE_SIZE);
+
+    uint32_t length = 0;
+    uint32_t offset = 0;
+    uint32_t pack_num = (uint32_t) hashtable_get(hashtable, &fd, sizeof(uint32_t))->value;
+    uint8_t latest = 0;
 
     do {
         if (size > MAX_DATA_SIZE) {
-            package_size = MAX_DATA_SIZE;
-            is_last = 0;
+            length = MAX_DATA_SIZE;
+            latest = 0;
         } else {
-            package_size = size;
-            is_last = 1;
+            length = size;
+            latest = 1;
         }
-        memcpy(package_data, data + offset, package_size);
-        data_decorator(package_data, (uint32_t) package_size, queue, is_last, (uint32_t) fd, pack_num);
-        size -= package_size;
-        offset += package_size;
+
+        memset(package, 0, PACKAGE_SIZE);
+        pack(package, fd, data + offset, length, pack_num, latest);
+        protocol_enqueue_package(protocol, package, PACKAGE_SIZE);
+
+        offset += length;
+        size -= length;
         pack_num++;
+
     } while (size > 0);
-    hashtable_add(hash_table, &fd, sizeof(int), pack_num);
-    free(package_data);
+
+    hashtable_add(hashtable, &fd, sizeof(int), pack_num);
+    free(package);
 }
 
-
-status secure_sendto(int server_fd, const void* data, size_t size, struct sockaddr_in* client_addr) {
+status protocol_secure_sendto(protocol_t* protocol, int server_fd, queue_node_t* node) {
     for (int ttr = 0; ttr < TTR; ttr++) {
-        if (socket_sendto(server_fd, data, size, client_addr) < 0) {
-            logger->write_log(logger, "Can not send to client", WARNING); // socket_sendto have logger too !?
+        if (sendto(server_fd, node->data, node->data_size, 0, (const struct sockaddr*) protocol->address, sizeof(struct sockaddr)) < 0) {
+            write_log(protocol->logger, "Can not sendto client", ERROR);
         } else {
-            return 0;
+            return SUCCESS;
         }
     }
 
-    return -1;
+    return FAILURE;
 }
 
-void* w_worker(queue_t* queue) {
-    struct sockaddr_in* server_addr;
-    int server_fd = socket_create_udp();
-    server_addr = socket_addr_init(AF_INET, GATEWAY, 0);
-    socket_bind(server_fd, server_addr);
+void protocol_transmitter(protocol_t* protocol) {
+    status status, answer;
+    queue_node_t* node;
 
-    size_t addr_len;
-    struct sockaddr_in* client_addr = socket_addr_init(AF_INET, MIDDLE_WRITE_IP, MIDDLE_WRITE_PORT);
+    int server_fd = socket_create_udp();
+    socket_timeout(server_fd, 10, 0);
 
     while (1) {
-        // dequeue
+        status = FAILURE;
 
-        pthread_mutex_lock(&w_mutex);
-
-        while (!queue->size) {
-            pthread_cond_wait(&w_cond, &w_mutex);
-        }
-
-        queue_node_t* node = dequeue(queue);
-
-        pthread_mutex_unlock(&w_mutex);
-
-        // requests
+        node = protocol_dequeue_node(protocol);
 
         for (int ttr = 0; ttr < TTR; ttr++) {
-            if (secure_sendto(server_fd, node->data, node->data_size, client_addr) < 0) {
-                logger->write_log(logger, "Can not send to client (secure)", WARNING);
+
+            if (protocol_secure_sendto(protocol, server_fd, node) == FAILURE) {
+                write_log(protocol->logger, "Can not sendto client (secure)", WARNING);
                 continue;
             }
 
-            answer_t answer; // ?
-
-            socket_recvfrom(server_fd, &answer, sizeof(answer), client_addr, &addr_len);
-
-            if (answer.status == SUCCESS) {
-                break;
+            if (recvfrom(server_fd, &answer, sizeof(answer), 0, NULL, NULL) < 0) {
+                write_log(protocol->logger, "Can not recvfrom server", ERROR);
+                continue;
             }
 
-            if (ttr + 1 == TTR) {
-                char* error = "Can not send or receive package to/from client";
-                logger->write_log(logger, error, WARNING);
+            if (answer == FAILURE) {
+                write_log(protocol->logger, "Package status is incorrect", WARNING);
+                continue;
             }
+
+            status = SUCCESS;
+
+            break;
+        }
+
+        if (status == FAILURE) {
+            write_log(protocol->logger, "Can not sendto or recvfrom package", WARNING);
+        }
+
+        queue_node_destroy(node);
+    }
+}
+
+// receiver //
+
+void protocol_send_status(protocol_t* protocol, int socket_fd, status status, struct sockaddr* client) {
+    if (sendto(socket_fd, &status, sizeof(status), 0, client, sizeof(struct sockaddr)) < 0) {
+        write_log(protocol->logger, "Receiver: can not sendto", ERROR);
+    }
+}
+
+void protocol_receiver_start(protocol_t* protocol) {
+    int server_fd = socket_create_udp();
+    socket_bind(server_fd, protocol->address);
+
+    struct sockaddr client;
+    socklen_t socklen;
+
+    void* package = malloc(PACKAGE_SIZE);
+
+    while (1) {
+        memset(package, 0, sizeof(package));
+
+        if (recvfrom(server_fd, package, PACKAGE_SIZE, 0, &client, &socklen) <= 0) {
+            protocol_send_status(protocol, server_fd, FAILURE, &client);
+            write_log(protocol->logger, "Can not recvfrom client", ERROR);
+            continue;
+        }
+
+        uint16_t checksum;
+        size_t offset = PACKAGE_SIZE - sizeof(uint16_t);
+        memcpy(&checksum, package + offset, sizeof(checksum));
+
+        if (crc16(package, offset) == checksum) {
+            protocol_enqueue_package(protocol, package, PACKAGE_SIZE);
+            protocol_send_status(protocol, server_fd, SUCCESS, &client);
+        } else {
+            protocol_send_status(protocol, server_fd, FAILURE, &client);
+            write_log(protocol->logger, "Checksum is incorrect", WARNING);
         }
     }
+
+    free(package);
 }

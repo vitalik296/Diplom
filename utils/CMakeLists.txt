@@ -15,4 +15,5 @@ add_library(utils
             includes/protocol.h includes/queue.h
             libs/common.c includes/common.h
             libs/hashtable.c includes/hashtable.h
-        libs/list.c includes/list.h)
+            libs/list.c includes/list.h)
+
