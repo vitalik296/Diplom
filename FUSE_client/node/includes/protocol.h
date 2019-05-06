@@ -9,7 +9,6 @@
 
 #include "queue.h"
 #include "logger.h"
-#include "hashtable.h"
 #include "libsocket.h"
 
 #define MAX_DATA_SIZE 50
@@ -27,7 +26,7 @@ typedef struct {
     status status;
 } answer_t;
 
-void transmit_data(void* data, size_t size, int fd, queue_t* queue, hashtable_t* hash_table);
+void transmit_data(void* data, size_t size, int fd, queue_t* queue, void* hash_table);
 status secure_sendto(int server_fd, const void* data, size_t size, struct sockaddr_in* client_addr);
 void* w_worker(queue_t* queue);
 

@@ -11,25 +11,12 @@
 #include "protocol.h"
 
 logger_t* logger;
-//queue_t* w_queue;
 
 pthread_mutex_t w_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t w_cond = PTHREAD_COND_INITIALIZER;
 
 
-uint16_t* crc16(uint8_t* a, size_t len) {
-    uint16_t* crc = malloc(2);
-    memset(crc, 0, 2);
 
-    while (len--) {
-        *crc ^= *a++;
-        for (int i = 0; i < 8; ++i) {
-            *crc = (uint16_t) (*crc & 1 ? (*crc >> 1) ^ POLINOM : *crc >> 1);
-        }
-    }
-
-    return crc;
-}
 
 void data_decorator(void* data, uint32_t size, queue_t* queue, uint8_t is_last, uint32_t fd, uint32_t pack_num) {
     void* package = malloc(MAX_DATA_SIZE + HEADER_SIZE);
@@ -42,12 +29,12 @@ void data_decorator(void* data, uint32_t size, queue_t* queue, uint8_t is_last, 
     memcpy(package + 11, &size, 4);
     memcpy(package + 15, data, size);
 
-    uint16_t* checksum = crc16(package, size);
+    uint16_t* checksum = hash_function(package, size);
     memcpy(package + 9, checksum, 2);
     free(checksum);
 
 
-    queue->enqueue(queue, package, MAX_DATA_SIZE + HEADER_SIZE);
+    enqueue(queue, package, MAX_DATA_SIZE + HEADER_SIZE);
 
 
 
@@ -55,11 +42,11 @@ void data_decorator(void* data, uint32_t size, queue_t* queue, uint8_t is_last, 
 
 }
 
-void transmit_data(void* data, size_t size, int fd, queue_t* queue, void* hash_table) { // TODO add hash_table
+void transmit_data(void* data, size_t size, int fd, queue_t* queue, hashtable_t* hash_table) {
     void* package_data = malloc(MAX_DATA_SIZE);
     size_t package_size;
     size_t offset = 0;
-    uint32_t pack_num = 0;
+    uint32_t pack_num = (uint32_t) hashtable_get(hash_table, &fd, sizeof(int))->value;
     uint8_t is_last = 0;
 
     do {
@@ -74,7 +61,9 @@ void transmit_data(void* data, size_t size, int fd, queue_t* queue, void* hash_t
         data_decorator(package_data, (uint32_t) package_size, queue, is_last, (uint32_t) fd, pack_num);
         size -= package_size;
         offset += package_size;
+        pack_num++;
     } while (size > 0);
+    hashtable_add(hash_table, &fd, sizeof(int), pack_num);
     free(package_data);
 }
 
@@ -109,7 +98,7 @@ void* w_worker(queue_t* queue) {
             pthread_cond_wait(&w_cond, &w_mutex);
         }
 
-        queue_node_t* node = queue->dequeue(queue);
+        queue_node_t* node = dequeue(queue);
 
         pthread_mutex_unlock(&w_mutex);
 

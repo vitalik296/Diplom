@@ -10,6 +10,6 @@
 typedef void* method_t(void* this, ...);
 
 void throw(void);
-uint16_t* hash_function(void* data_to_hash, size_t len);
+uint16_t* hash_function(void* a, size_t len);
 
 #endif //UTILS_COMMON_H
