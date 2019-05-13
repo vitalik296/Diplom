@@ -1,15 +1,12 @@
 #ifndef UTILS_LIBRARY_H
 #define UTILS_LIBRARY_H
 
-#include <stdlib.h>
-#include <sys/types.h>
-
 #include "common.h"
-#include "queue.h"
 #include "hashtable.h"
-#include "logger.h"
 #include "libsocket.h"
+#include "list.h"
+#include "logger.h"
 #include "protocol.h"
+#include "queue.h"
 
-
-#endif
+#endif //UTILS_LIBRARY_H

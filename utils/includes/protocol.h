@@ -1,28 +1,17 @@
 #ifndef UTILS_PROTOCOL_H
 #define UTILS_PROTOCOL_H
 
-#include <sys/types.h>
+#include <pthread.h>
 
 #include "queue.h"
 #include "logger.h"
 #include "hashtable.h"
 #include "libsocket.h"
 
-#define MAX_DATA_SIZE 50
-#define PACKAGE_SIZE MAX_DATA_SIZE+MAX_DATA_SIZE
 #define TTR 16
-
-typedef enum { FAILURE, SUCCESS } status;
-
-typedef struct {
-    pthread_t* threads;
-    size_t number;
-    queue_t* queue;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    address_t* address;
-    logger_t* logger;
-} protocol_t;
+#define HEADER_SIZE 16
+#define MAX_DATA_SIZE 50
+#define PACKAGE_SIZE HEADER_SIZE+MAX_DATA_SIZE
 
 /* // HOW USE
  *
@@ -42,19 +31,29 @@ typedef struct {
  *
  * protocol_stop(protocol);
  *
- * protocol_destroy(protocol);
+ * protocol_free(protocol);
  *
  * free(logger);
  */
 
+typedef struct {
+    pthread_t* threads;
+    size_t number;
+    queue_t* queue;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    address_t* address;
+    logger_t* logger;
+} protocol_t;
+
 // protocol //
-protocol_t* protocol_init(size_t number, char* ip, ushort port, logger_t* logger);
+protocol_t* protocol_init(size_t number, char* ip, uint16_t port, logger_t* logger);
 void protocol_start(protocol_t* protocol, void* worker);
 void protocol_stop(protocol_t* protocol);
-void protocol_destroy(protocol_t* protocol);
+void protocol_free(protocol_t* protocol);
 
 // queue //
-void protocol_enqueue_package(protocol_t* protocol, void* package, uint32_t size);
+void protocol_enqueue_package(protocol_t* protocol, void* package, size_t size);
 queue_node_t* protocol_dequeue_node(protocol_t* protocol);
 
 // transmitter //
