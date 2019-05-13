@@ -1,48 +1,31 @@
 from threading import Lock
-from queue import PriorityQueue, Queue
 
-from utils import TypedSingleton
-
-
-class QueueItem(object):
-    def __init__(self, priority, data):
-        self.priority = priority
-        self.data = data
-
-    def __lt__(self, other):
-        return self.priority > other.priority
+from utils import NamedSingleton, BaseQueue, MaxPriorityQueue
 
 
-class Interaction(metaclass=TypedSingleton):
+class Interaction(metaclass=NamedSingleton):
+    def __init__(self, key):
+        self.__queue = MaxPriorityQueue() if key == "request" else BaseQueue()
+        self.__mutex = Lock()
 
-    def __init__(self, inter_type):
-        self.__queue = PriorityQueue() if inter_type == "request" else Queue()
-        self.__lock = Lock()
+    def insert(self, data, priority=0):
+        self.__mutex.acquire()
 
-    def insert(self, priority = 0, data):
-        self.__lock.acquire()
-
-        if type(self.__queue) == PriorityQueue:
-            self.__queue.put(QueueItem(priority, data))
+        if type(self.__queue) == MaxPriorityQueue:
+            self.__queue.insert(data, priority)
         else:
-            self.__queue.put(data)
+            self.__queue.insert(data)
 
-        self.__lock.release()
+        self.__mutex.release()
 
     def remove(self):
-        self.__lock.acquire()
-
-        if self.__queue.empty():
-            result = None
-        else:
-            result = self.__queue.get()
-
-        self.__lock.release()
-
+        self.__mutex.acquire()
+        result = self.__queue.remove()
+        self.__mutex.release()
         return result
 
-    def is_empty(self):
-        self.__lock.acquire()
+    def empty(self):
+        self.__mutex.acquire()
         result = self.__queue.empty()
-        self.__lock.release()
+        self.__mutex.release()
         return result
