@@ -1,3 +1,4 @@
+import socket
 from queue import PriorityQueue, Queue
 
 
@@ -46,3 +47,30 @@ class MaxPriorityQueue(BaseQueue):
         if not self.__queue.empty():
             return self.__queue.get().item
         return None
+
+
+class Socket(object):
+    @staticmethod
+    def create_tcp(blocking=True):
+        new_socket = socket.socket(type=socket.SOCK_STREAM)
+        new_socket.setblocking(blocking)
+        return new_socket
+
+    @staticmethod
+    def create_udp():
+        new_socket = socket.socket(type=socket.SOCK_DGRAM)
+        return new_socket
+
+    @staticmethod
+    def create_and_bind_tcp(server_address, blocking=False):
+        server_socket = Socket.create_tcp(blocking)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind(server_address)
+        return server_socket
+
+    @staticmethod
+    def create_and_bind_udp(server_address):
+        server_socket = Socket.create_udp()
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind(server_address)
+        return server_socket
