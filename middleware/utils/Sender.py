@@ -1,6 +1,6 @@
 from threading import Thread
-from Interaction import Interaction
-from utils import Socket
+from .Interaction import Interaction
+from .utilities import Socket, StoppedThread
 
 TCP = 0
 UDP = 1
@@ -13,27 +13,26 @@ class Sender(object):
         self._threads = []
 
     @staticmethod
-    def __base_tcp():
-        tcp_response = Interaction("tcp_response")
+    def __base_tcp(is_alive):
+        # tcp_response = Interaction("tcp_response")
 
-        while True:
-            item = tcp_response.remove()
+        while is_alive():
+            item = Interaction("tcp_response").remove()
 
             if item:
                 data, address = item
-                print(data, address)
                 tcp_socket = Socket.create_tcp()
                 tcp_socket.connect(address)
-                tcp_socket.send(data)
+                tcp_socket.send(data.encode("utf-8"))
                 tcp_socket.close()
 
     @staticmethod
-    def __base_udp():
+    def __base_udp(is_alive):
         udp_response = Interaction("udp_response")
 
         udp_socket = Socket.create_udp()
 
-        while True:
+        while is_alive():
             item = udp_response.remove()
 
             if item:
@@ -43,11 +42,11 @@ class Sender(object):
                 a = udp_socket.sendto(data, address)
                 print('EEEEEEEEEEEEEE', a)
 
-        udp_socket.close()
+        # udp_socket.close()
 
     def __start_thread(self, name, callback, args=None):
-        self._threads.append(Thread(name=name, target=callback, args=args))
-        self._threads[-1].daemon = True
+        self._threads.append(StoppedThread(name=name, target=callback, args=args))
+        # self._threads[-1].daemon = True
         self._threads[-1].start()
 
     def start(self, tcp_request=None, udp_request=None):
@@ -59,4 +58,5 @@ class Sender(object):
 
     def stop(self):
         for thread in self._threads:
+            thread.stop()
             thread.join()

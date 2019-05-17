@@ -1,12 +1,13 @@
 from threading import Lock
 
-from utils import NamedSingleton, BaseQueue, MaxPriorityQueue
+from .utilities import NamedSingleton, MaxPriorityQueue, BaseQueue
 
 
 class Interaction(metaclass=NamedSingleton):
     def __init__(self, key):
         self.__queue = MaxPriorityQueue() if key == "request" else BaseQueue()
         self.__mutex = Lock()
+        self.test = 10
 
     def insert(self, data, priority=0):
         self.__mutex.acquire()
