@@ -14,9 +14,14 @@ server_address = ("127.0.0.1", 4234)
 print('connecting to {} port {}'.format(*server_address))
 client.connect(server_address)
 
-message = 'create&testdir/child_dir/test_file&9001'
+# message = 'create&/test_file&9001'
 
-# readdir_test = 'readdir&testdir/child_dir&9001'
+# message = 'readdir&/&9001'
+
+# message = 'mkdir&/&9001'
+
+message = "getattr&/test_file&9001"
+
 print('sending {!r}'.format(message))
 client.send(tcp_request(message))
 print('closing socket')

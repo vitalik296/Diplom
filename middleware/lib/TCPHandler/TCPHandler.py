@@ -124,7 +124,9 @@ class TCPHandler(BaseHandler):
         if not res:
             return self._tcp_sender_inter.insert(("0&File Doesn't Exists", (address[0], int(response_port))))
 
-        res = "&".join((1, *res, "777"))
+        file_type, size = res
+
+        res = "&".join((str(1), file_type, "777", str(size)))
 
         self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
 
@@ -173,5 +175,6 @@ class TCPHandler(BaseHandler):
             return self._tcp_sender_inter.insert(("0&Directory Already Exists", (address[0], int(response_port))))
         else:
             request = "&".join(("mkdir", pathname))
+            print(request)
             self._tcp_sender_inter.insert((request, CLUSTER_MANAGER_ADDRESS))
             return self._tcp_sender_inter.insert(('1', (address[0], int(response_port))))

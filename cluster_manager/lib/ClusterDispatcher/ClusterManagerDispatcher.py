@@ -61,8 +61,6 @@ class ClusterManagerDispatcher(object):
 
     def _create(self, data, *args, **kwargs):
 
-        print("HERE")
-
         payload, address = data
 
         pathname, response_ip, response_port = payload
@@ -70,6 +68,9 @@ class ClusterManagerDispatcher(object):
         file_id = self._mapper.query("insert_file", pathname, last_row_id=True)[0][0][0]
 
         dir_pathname = pathname.rsplit('/', 1)[0]
+
+        if not dir_pathname:
+            dir_pathname = '/'
 
         self._mapper.query("update_directory_data", (file_id, dir_pathname))
 
@@ -79,14 +80,18 @@ class ClusterManagerDispatcher(object):
 
     def _mkdir(self, data, *args, **kwargs):
 
-        pathname, _ = data
+        payload, _ = data
 
-        self._mapper.query("insert_directory", pathname)
-        file_id = self._mapper.query("select_file_id_by_pathname", pathname)[0][0]
+        pathname = payload[0]
+
+        file_id = self._mapper.query("insert_directory", pathname)[0][0]
 
         pathname = str(pathname)
 
         parent_dir_pathname = pathname.rsplit('/', 1)[0]
+
+        if not parent_dir_pathname:
+            parent_dir_pathname = '/'
 
         if parent_dir_pathname != pathname:
             self._mapper.query("update_directory_data", (file_id, parent_dir_pathname))

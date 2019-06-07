@@ -27,7 +27,9 @@ class ClusterManagerMapper(BasicMapper):
                             INSERT INTO
                                 public.File(pathname, type)
                             VALUES
-                                (%s,'d');
+                                (%s,'d')
+                            RETURNING
+                                file_id;
                             """,
             "select_file_id_by_pathname":   """
                             SELECT
