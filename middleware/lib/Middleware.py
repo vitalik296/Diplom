@@ -1,6 +1,5 @@
-from lib.MiddleWorker import MiddleWorker
-from lib.Transmitter import Transmitter
-from utils import Singleton
+from .MiddleWorker import MiddleWorker
+from utils import Transmitter, Singleton
 
 
 class Middleware(metaclass=Singleton):
@@ -8,7 +7,7 @@ class Middleware(metaclass=Singleton):
     def __init__(self):
         self.__transmitter = Transmitter(MiddleWorker)
 
-        self.__db_mapper = None
+        # self.__db_mapper = None
 
     def start(self):
         self.__transmitter.start()

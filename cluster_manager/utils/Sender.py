@@ -26,7 +26,7 @@ class Sender(object):
         # tcp_response = Interaction("tcp_response")
 
         while is_alive():
-            item = Interaction("tcp_sender").remove()
+            item = Interaction("sender").remove()
 
             if item:
                 data, address = item

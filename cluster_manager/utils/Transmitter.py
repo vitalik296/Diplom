@@ -1,6 +1,7 @@
-from lib.MiddleWorker import MiddleWorker
-from utils import Receiver, Sender, Interaction, Worker, InteractionListener
-from utils.Receiver import base_tcp, base_udp
+from .Receiver import Receiver, base_tcp, base_udp
+from .Sender import Sender
+from .Worker import Worker
+from .InteractionListener import InteractionListener
 
 
 class Transmitter(object):
@@ -12,10 +13,6 @@ class Transmitter(object):
         self.__handler = InteractionListener(1)
 
         self.__worker = worker()
-
-        # self.__rec_inter = Interaction("receive")
-        # self.__tcp_sender_inter = Interaction("tcp_sender")
-        # self.__udp_sender_inter = Interaction("udp_sender")
 
     def start(self, receivers=(base_tcp, base_udp), senders=()):
         self.__receiver.start(*receivers)
