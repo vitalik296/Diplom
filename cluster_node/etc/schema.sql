@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS packages;
+
+CREATE TABLE packages(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_id INTEGER NOT NULL DEFAULT -1,
+    block_offset INTEGER  NOT NULL DEFAULT 0,
+    inblock_offset INTEGER NOT NULL DEFAULT 0 ,
+    real_size INTEGER NOT NULL DEFAULT 0
+);

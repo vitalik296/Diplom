@@ -21,16 +21,19 @@ class TCPHandler(BaseHandler):
             "getattr": TaskThread(target=kwargs.get("getattr", self._getattr), name="getattr"),
             "readdir": TaskThread(target=kwargs.get("readdir", self._readdir), name="readdir"),
             "create": TaskThread(target=kwargs.get("create", self._create), name="create"),
-            "mkdir": TaskThread(target=kwargs.get("mkdir", self._mkdir), name="mkdir")
+            "mkdir": TaskThread(target=kwargs.get("mkdir", self._mkdir), name="mkdir"),
+            "load": TaskThread(target=kwargs.get("load", self._load), name="load"),
+            "cache_add": TaskThread(target=kwargs.get("cache_add", self._cache_add), name="cache_add")
         }
 
         self._cache = Cache("middleware")
 
         self._cache['fd'] = {}
+        self._cache['pathname'] = {}
         self._cache['package'] = {}
+        self._cache['user'] = {}
 
         self._mapper = TCPMapper()
-        # self._cache['fd'] = {}
 
     def __create_fd(self):
         """0...127"""
@@ -68,7 +71,18 @@ class TCPHandler(BaseHandler):
 
     # CACHE OPERATION
     def _cache_add(self, data, *args, **kwargs):
-        print("cache_add method: ", data)
+        payload, address = data
+
+        keys, values = payload
+
+        keys = keys.split('|')
+        values = values.split('|')
+
+        for key in keys:
+            pathname, order_num = key.split(',')
+            fd = int(self._cache['pathname'][pathname])
+            order_num = int(order_num)
+            self._cache['package'].update({(fd, order_num): values.pop(0).split(',')})
 
     def _cache_del(self, data, *args, **kwargs):
         print("cache_del method: ", data)
@@ -99,7 +113,8 @@ class TCPHandler(BaseHandler):
         if fd == -1:
             return 0
 
-        self._cache['fd'].update({fd: {'type': file_type, 'size': size, 'order': order}})
+        self._cache['fd'].update({fd: {'type': file_type, 'size': size, 'order': order, 'pathname': pathname}})
+        self._cache['pathname'].update({pathname: fd})
 
         res = "&".join((str(1), str(fd), str(order)))
 
@@ -109,7 +124,11 @@ class TCPHandler(BaseHandler):
         payload, address = data
 
         fd, response_port = payload
-        del self._cache[int(fd)]
+
+        pathname = self._cache['fd']['pathname']
+
+        del self._cache['pathname'][pathname]
+        del self._cache['fd'][int(fd)]
 
         # TODO add synchronization
 
@@ -130,16 +149,62 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
 
+    def _load(self, data):
+        payload, address = data
+
+        fd = payload[0]
+
+        pack_count = len(payload) - 1
+
+        client_address = self._cache["user"][fd]
+
+        message = "&".join(("1", str(pack_count)))
+
+        self._tcp_sender_inter.insert((message, (client_address['ip'], client_address['tcp_port'])))
+
+        for value in payload:
+            node_id, pack_id, order_num = value.split(",")
+            ip, tcp_port = self._mapper.query("get_node_ip_tcp_port", int(node_id))[0]
+
+            self._cache["package"][int(pack_id)] = int(order_num)
+
+            message = "&".join(("read", pack_id))
+
+            self._tcp_sender_inter.insert((message, (ip, int(tcp_port))))
+
     def _read(self, data, *args, **kwargs):
-        print("read function: ", data)
+        payload, address = data
+        fd, max_package_count, offset, tcp_port, udp_port = payload
+
+        self._cache["user"][fd] = {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)}
+
+        pathname = self._cache['fd'].get(fd, None)
+
+        status = self._mapper.query("get_file_status", pathname)[0]
+
+        if not status or status == "False":
+            self._tcp_sender_inter.insert(("0&File isn't ready", (address[0], int(tcp_port))))
+
+        message = "&".join(('read', fd, pathname, max_package_count, offset))
+
+        self._tcp_sender_inter.insert((message, CLUSTER_MANAGER_ADDRESS))
 
     def _write(self, data, *args, **kwargs):
 
         payload, address = data
 
-        # TODO add exist condition
+        fd, package_count = payload
 
-        self._tcp_sender_inter.insert(("&".join(("write", *payload)), CLUSTER_MANAGER_ADDRESS))
+        pathname = self._cache['fd'][int(fd)]['pathname']
+
+        # TODO add exists check
+
+        # res = self._mapper.query("get_file_by_pathname", pathname)
+        #
+        # if not res:
+        #     return self._tcp_sender_inter.insert(("0&File Doesn't Exists", (address[0], int(response_port))))
+
+        self._tcp_sender_inter.insert(("&".join(("write", pathname, package_count)), CLUSTER_MANAGER_ADDRESS))
 
     def _readdir(self, data, *args, **kwargs):
         payload, address = data

@@ -6,18 +6,8 @@ from .InteractionListener import InteractionListener
 
 class Transmitter(object):
 
-    def __init__(self, worker=Worker, tcp_receiver=None, udp_receiver=None):
-        if udp_receiver:
-            if tcp_receiver:
-                self.__receiver = Receiver(tcp_address=tcp_receiver, udp_address=udp_receiver)
-            else:
-                self.__receiver = Receiver(udp_address=udp_receiver)
-        else:
-            if tcp_receiver:
-                self.__receiver = Receiver(tcp_address=tcp_receiver, udp_address=None)
-            else:
-                self.__receiver = Receiver(udp_address=None)
-
+    def __init__(self, worker=Worker):
+        self.__receiver = Receiver()
         self.__sender = Sender()
 
         self.__handler = InteractionListener(1)

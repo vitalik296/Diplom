@@ -80,11 +80,7 @@ class Receiver(object):
     def __init__(self, tcp_address=DEFAULT_TCP, udp_address=DEFAULT_UDP):
         self._threads = []
         self._tcp_socket = Socket.create_and_bind_tcp(tcp_address)
-
-        if udp_address:
-            self._udp_socket = Socket.create_and_bind_udp(udp_address)
-        else:
-            self._udp_socket = None
+        self._udp_socket = Socket.create_and_bind_udp(udp_address)
 
     def __start_thread(self, name, callback, args=None):
         self._threads.append(StoppedThread(name=name, target=callback, args=args))
@@ -93,8 +89,7 @@ class Receiver(object):
 
     def start(self, tcp_request=base_tcp, udp_request=base_udp):
         self.__start_thread(name="request-tcp", callback=tcp_request, args=(self._tcp_socket,))
-        if self._udp_socket:
-            self.__start_thread(name="request-udp", callback=udp_request, args=(self._udp_socket,))
+        self.__start_thread(name="request-udp", callback=udp_request, args=(self._udp_socket,))
 
     def stop(self):
         for thread in self._threads:
@@ -102,5 +97,4 @@ class Receiver(object):
             thread.join()
 
         self._tcp_socket.close()
-        if self._udp_socket:
-            self._udp_socket.close()
+        self._udp_socket.close()

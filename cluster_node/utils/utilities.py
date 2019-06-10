@@ -199,6 +199,3 @@ class Cache(metaclass=NamedSingleton):
 
     def values(self):
         return list(self.__cache_dict.values())
-
-    def items(self):
-        return list(self.__cache_dict.items())

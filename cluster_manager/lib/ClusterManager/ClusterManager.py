@@ -1,4 +1,4 @@
-from lib.ClusterWorker import ClusterWorker
+from lib.ClusterManager.ClusterWorker import ClusterWorker
 from utils import Transmitter, Singleton
 
 
