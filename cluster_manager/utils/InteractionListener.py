@@ -4,10 +4,11 @@ from .utilities import StoppedThread
 
 
 class InteractionListener(object):
-    def __init__(self, max_process_count):
+    def __init__(self, max_process_count, name="receive"):
         self.__interaction = Interaction("receive")
         self.__proc_count = max_process_count
         self._threads = []
+        self._name = name
 
     def __start_thread(self, callback, args=None):
         self._threads.append(StoppedThread(name="listener", target=callback, args=args))
@@ -15,8 +16,8 @@ class InteractionListener(object):
         self._threads[-1].start()
 
     @staticmethod
-    def _handle(is_alive, worker):
-        interaction = Interaction("receive")
+    def _handle(is_alive, worker, queue_name="receive"):
+        interaction = Interaction(queue_name)
 
         while is_alive():
             data = interaction.remove()
@@ -30,7 +31,7 @@ class InteractionListener(object):
             worker = Worker()
 
         for _ in range(self.__proc_count):
-            self.__start_thread(self._handle, args=(worker,))
+            self.__start_thread(self._handle, args=(worker, self._name))
 
     def stop(self):
         for thread in self._threads:

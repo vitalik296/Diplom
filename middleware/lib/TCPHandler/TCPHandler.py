@@ -37,7 +37,7 @@ class TCPHandler(BaseHandler):
 
     def __create_fd(self):
         """0...127"""
-        keys = self._cache.keys()
+        keys = self._cache['fd'].keys()
 
         for i in range(128):
             if i not in keys:
@@ -77,7 +77,10 @@ class TCPHandler(BaseHandler):
 
         keys = keys.split('|')
         values = values.split('|')
-
+        print('--------------------')
+        print(keys)
+        print(values)
+        print('--------------------')
         for key in keys:
             pathname, order_num = key.split(',')
             fd = int(self._cache['pathname'][pathname])
@@ -92,6 +95,8 @@ class TCPHandler(BaseHandler):
 
         payload, address = data
         pathname, *response_address = payload
+
+        print('(((((((((((pathname))))))))))))))))', pathname)
 
         if len(response_address) == 2:
             response_ip = response_address[0]
@@ -108,6 +113,7 @@ class TCPHandler(BaseHandler):
         file_type, size, order = res
 
         fd = self.__create_fd()
+        print(fd, order)
 
         # TODO add exception
         if fd == -1:
@@ -139,22 +145,24 @@ class TCPHandler(BaseHandler):
         payload, address = data
         path_name, response_port = payload
 
-        res = self._mapper.query("get_file_attr_by_pathname", path_name)[0]
+        res = self._mapper.query("get_file_attr_by_pathname", path_name)
         if not res:
             return self._tcp_sender_inter.insert(("0&File Doesn't Exists", (address[0], int(response_port))))
 
-        file_type, size = res
+        file_type, size = res[0]
 
         res = "&".join((str(1), file_type, "777", str(size)))
 
         self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
 
-    def _load(self, data):
+    def _load(self, data, *args, **kwargs):
         payload, address = data
+        print('_load', payload)
+        fd = int(payload.pop(0))
 
-        fd = payload[0]
-
-        pack_count = len(payload) - 1
+        pack_count = len(payload)
+        print(payload)
+        print(pack_count)
 
         client_address = self._cache["user"][fd]
 
@@ -174,18 +182,22 @@ class TCPHandler(BaseHandler):
 
     def _read(self, data, *args, **kwargs):
         payload, address = data
-        fd, max_package_count, offset, tcp_port, udp_port = payload
-
+        fd, max_package_count, offset, udp_port, tcp_port = payload
+        fd = int(fd)
         self._cache["user"][fd] = {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)}
+
+        print(self._cache)
+        print(self._cache['fd'])
+        print(self._cache['fd'].get(fd, None))
 
         pathname = self._cache['fd'].get(fd, None)
 
-        status = self._mapper.query("get_file_status", pathname)[0]
+        status = self._mapper.query("get_file_status", pathname['pathname'])[0]
 
         if not status or status == "False":
             self._tcp_sender_inter.insert(("0&File isn't ready", (address[0], int(tcp_port))))
 
-        message = "&".join(('read', fd, pathname, max_package_count, offset))
+        message = "&".join(('read', str(fd), pathname['pathname'], str(max_package_count), str(offset)))
 
         self._tcp_sender_inter.insert((message, CLUSTER_MANAGER_ADDRESS))
 
@@ -193,7 +205,7 @@ class TCPHandler(BaseHandler):
 
         payload, address = data
 
-        fd, package_count = payload
+        fd, package_count, _ = payload
 
         pathname = self._cache['fd'][int(fd)]['pathname']
 
@@ -225,6 +237,8 @@ class TCPHandler(BaseHandler):
 
         payload, address = data
         pathname, response_port = payload
+
+        print('((((((((((((((((((((((((((((', pathname)
 
         if self._mapper.query('get_file_attr_by_pathname', pathname):
             return self._tcp_sender_inter.insert(("0&File Already Exists", (address[0], int(response_port))))

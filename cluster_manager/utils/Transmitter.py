@@ -6,7 +6,7 @@ from .InteractionListener import InteractionListener
 
 class Transmitter(object):
 
-    def __init__(self, worker=Worker, tcp_receiver=None, udp_receiver=None):
+    def __init__(self, worker=Worker, tcp_receiver=None, udp_receiver=None, name="receive"):
         if udp_receiver:
             if tcp_receiver:
                 self.__receiver = Receiver(tcp_address=tcp_receiver, udp_address=udp_receiver)
@@ -20,7 +20,7 @@ class Transmitter(object):
 
         self.__sender = Sender()
 
-        self.__handler = InteractionListener(1)
+        self.__handler = InteractionListener(1, name=name)
 
         self.__worker = worker()
 

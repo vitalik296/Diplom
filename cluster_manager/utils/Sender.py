@@ -59,7 +59,7 @@ class Sender(object):
         self._threads[-1].start()
 
     def start(self, tcp_request=None, udp_request=None):
-        tcp_req = tcp_request if tcp_request else Sender.__base_tcp
+        tcp_request = tcp_request if tcp_request else Sender.__base_tcp
         udp_request = udp_request if udp_request else Sender.__base_udp
 
         self.__start_thread(name="response-tcp", callback=tcp_request, args=())

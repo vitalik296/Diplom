@@ -24,7 +24,7 @@ pack_id SERIAL PRIMARY KEY ,
 node_id INT NOT NULL,
 next_package INT DEFAULT NULL,
 file_id INT NOT NULL,
-status BOOL DEFAULT FALSE NOT NULL,
+status BOOL DEFAULT FALSE NOT NULL
 
 --FOREIGN KEY (next_package) REFERENCES Package (node_id),
 --FOREIGN KEY (node_id) REFERENCES Node (node_id),

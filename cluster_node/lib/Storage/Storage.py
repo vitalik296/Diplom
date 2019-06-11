@@ -10,12 +10,15 @@ CF = Config()
 
 
 def wrap(payload):
+    print(payload)
     format, value = payload
+    print('    ', format, value)
     return struct.pack(format, value)
 
 
 def pack(*args):
-    return reduce(lambda x, y: wrap(x) + wrap(y), args)
+    res = map(lambda x: wrap(x), args)
+    return reduce(lambda x, y: x + y, res)
 
 
 class Storage(BaseHandler):
@@ -42,7 +45,10 @@ class Storage(BaseHandler):
             self._file = open(CF.get("Storage", "file_path"), 'w+b')
             self._file.seek(self._size)
             self._file.write(b'\n')
+            self._file.flush()
+            print("Initial Load...")
             for i in range(self._size // self._block_size):
+                print(str(100 * i / self._size * self._block_size) + "%")
                 self._mapper.query("initial_insert", i)
 
         self._handlers = {"read": TaskThread(target=kwargs.get("read", self.tcp_read), name="read"),
@@ -54,10 +60,15 @@ class Storage(BaseHandler):
 
     def execute(self, data, address):
         print(data)
-        command, *payload = data.decode("utf-8").split('&')
-        if not payload:
-            payload = command
+        try:
+            command, *payload = data.decode("utf-8").split('&')
+        except UnicodeDecodeError as e:
+            payload = data
             command = "write"
+
+        # if not payload:
+        #     payload = command
+        #     command = "write"
         handler = self._handlers.get(command, None)
 
         if handler:
@@ -96,20 +107,23 @@ class Storage(BaseHandler):
     def _read(self, pack_id, buffer_size=int(CF.get("Storage", "block_size")), block_offset=0, in_block_offset=0):
         self._file.seek(block_offset * self._block_size + in_block_offset)
         buffer = self._file.read(buffer_size - in_block_offset)
-        buffer = pack((("i", -1), ("I", pack_id), ("I", buffer_size), (str(self._block_size) + "s", buffer), ("H", 0)))  # TODO add checksum
+        buffer = pack(("i", -1), ("I", int(pack_id)), ("I", int(buffer_size)), (str(self._block_size) + "s", buffer), ("H", 0))  # TODO add checksum
         print(buffer)
-        self.__udo_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))
+        self.__udo_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "udp_"
+                                                                                                "port")))))
 
     def udp_write(self, data, *args, **kwargs):
         payload, address = data
 
-        package = payload[0]
+        package = payload
 
         print(package)
 
         package_id = struct.unpack("I", package[4:8])[0]
         size = struct.unpack("I", package[8:12])[0]
         data = package[12:12 + size]
+
+        print(package_id, size, data)
 
         free_pack = self._mapper.query("get_free_package")
 
@@ -118,9 +132,9 @@ class Storage(BaseHandler):
             self._write(data, block_offset, inblock_offset)
             self._mapper.query("update_package", (package_id, 0, size, id))
 
-            message = "&".join(("status", str(self._node_id), str(package_id), "True"))
+            message = "&".join(("status", str(size), str(self._node_id), str(package_id), "True"))
 
-            self.__tcp_sender.insert(message, (CF.get("Cluster Manager", "ip"), int(CF.get("Cluster Manager", "port"))))
+            self.__tcp_sender.insert((message, (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
         else:
             # TODO add else statement and handler
             pass
@@ -129,10 +143,11 @@ class Storage(BaseHandler):
         self._file.seek(block_offset * self._block_size + in_block_offset)
         self._filed_memory += len(data_to_write)
         self._file.write(data_to_write)
+        self._file.flush()
 
     def __is_alive_request(self):
         self.__tcp_sender.insert(
-            ("alive&" + self._node_id + "&True", (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+            ("alive&" + str(self._node_id) + "&True", (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
         Timer(int(CF.get("HealthMonitor", "repeat_timeout")), self.__is_alive_request).start()
 
     def _init(self, data, *args, **kwargs):

@@ -71,6 +71,14 @@ class ClusterManagerMapper(BasicMapper):
                             WHERE
                                 pack_id=%s;
                               """,
+            "select_parent_id": """
+                            SELECT
+                                pack_id
+                            FROM
+                                public.Package
+                            WHERE
+                                file_id=%s AND next_package IS Null;
+                            """,
             "update_file_order_num": """
                             UPDATE
                                 public.File

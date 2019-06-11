@@ -50,7 +50,22 @@ def base_tcp(is_alive, tcp_socket):
                     s.close()
 
 
-def checksum_compare(package):
+def crc16(buffer, size):
+    crc = 0
+
+    for i in range(0, size):
+        crc ^= buffer[i]
+        for j in range(0, 8):
+            if (crc & 1) > 0:
+                crc = (crc >> 1) ^ 0x8005
+            else:
+                crc = crc >> 1
+
+    return crc
+
+
+def checksum_compare(package, checksum):
+    # return crc16(package, PACKAGE_SIZE-2) == checksum
     return True
 
 
@@ -68,12 +83,13 @@ def base_udp(is_alive, udp_socket):
         for s in readable:
             package, address = s.recvfrom(PACKAGE_SIZE)
 
-            if checksum_compare(package):
+            *_, checksum = struct.unpack('<III' + str(512) + 'sH', package)
+
+            if checksum_compare(package, checksum):
                 interaction.insert(("udp", package, address), 0)
-                # udp_socket.sendto(struct.pack('h', 1), address)
+                udp_socket.sendto(struct.pack('h', 1), address)
             else:
-                pass
-            s.sendto(struct.pack('h', 0), address)
+                s.sendto(struct.pack('h', 0), address)
 
 
 class Receiver(object):

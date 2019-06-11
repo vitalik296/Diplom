@@ -1,5 +1,5 @@
 from utils import Worker, Singleton
-from lib.ClusterManager.ClusterDispatcher import ClusterManagerDispatcher
+from lib.ClusterManager.ClusterDispatcher.ClusterManagerDispatcher import ClusterManagerDispatcher
 
 
 class ClusterWorker(Worker, metaclass=Singleton):

@@ -52,8 +52,11 @@ class HealthDispatcher(object):
         payload, _ = data
         node_id, status = payload
 
+        node_id = int(node_id)
+
         if self._cache.get(node_id, None):
-            self._cache[node_id].cancel()
+            if self._cache[node_id]['timer']:
+                self._cache[node_id]['timer'].cancel()
 
         if status == "True":
             self._cache[node_id]['timer'] = Timer(int(CF.get("Node", "node_live_timeout")), self._alive,
@@ -65,19 +68,28 @@ class HealthDispatcher(object):
 
     def _status(self, data, *args, **kwargs):
         payload, _ = data
-        node_id, pack_id, status = payload
+        new_size, node_id, pack_id, status = payload
 
         node_id = int(node_id)
 
         self._mapper.query("update_package_status", (status, pack_id))
 
-        res, file_id = self._mapper.query("get_unready_package", pack_id)[0]
+        res, file_id = self._mapper.query("get_unready_package", (pack_id, pack_id))
+
+        print(res)
+
+        res = res[0]
+        file_id = file_id[0]
+
+        self._mapper.query("update_file_size", (new_size, file_id))
+
+        print(res, file_id)
 
         self._cache[node_id]['pack_idle_count'] -= 1
         self._cache['node_load'][node_id] = self._cache[node_id]['pack_idle_count']*self._cache[node_id]['free_size']
 
         if not res:
-            message = "&".join(("status", file_id, "True"))
+            message = "&".join(("status", str(file_id), "True"))
             self._sender_inter.insert((message, (CF.get("Receiver", "ip"), int(CF.get("Receiver", "tcp_port")))))
 
     def _init(self, data, *args, **kwargs):
@@ -87,7 +99,7 @@ class HealthDispatcher(object):
         res = self._mapper.query("get_node_by_address", (address[0], int(tcp_port)))
 
         if not res:
-            node_id = self._mapper.query("insert_new_node", (address[0], tcp_port, udp_port))[0][0][0]
+            node_id = self._mapper.query("insert_new_node", (address[0], tcp_port, udp_port))[0][0]
         else:
             node_id = int(res[0][0])
 

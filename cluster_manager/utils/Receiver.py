@@ -93,7 +93,7 @@ class Receiver(object):
 
     def start(self, tcp_request=base_tcp, udp_request=base_udp):
         self.__start_thread(name="request-tcp", callback=tcp_request, args=(self._tcp_socket,))
-        if self._udp_socket:
+        if self._udp_socket and udp_request:
             self.__start_thread(name="request-udp", callback=udp_request, args=(self._udp_socket,))
 
     def stop(self):

@@ -24,7 +24,11 @@ class BasicMapper(metaclass=Singleton):
     def _load_from_schema(self, path_name=CF.get("Database", "schema")):
         db = self._connect()
         cursor = db.cursor()
-        cursor.execute(open(path_name, "r").read())
+        # cursor.execute(open(path_name, "r").read())
+
+        with open(path_name) as fp:
+            cursor.executescript(fp.read())
+
         db.commit()
         cursor.close()
         db.close()

@@ -17,6 +17,7 @@ class ClusterManagerDispatcher(object):
             "write": TaskThread(target=kwargs.get("write", self._write), name="write"),
             "create": TaskThread(target=kwargs.get("create", self._create), name="create"),
             "mkdir": TaskThread(target=kwargs.get("mkdir", self._mkdir), name="mkdir"),
+            "status": TaskThread(target=kwargs.get("status", self._status), name="status"),
         }
 
         self._cache = Cache("cluster_manager")
@@ -74,7 +75,8 @@ class ClusterManagerDispatcher(object):
 
         for item in dict_to_ser.items():
             key.append(','.join(item[0]))
-            values.append(','.join(item[1]))
+            node, package_id = item[1]
+            values.append(','.join((str(node), str(package_id))))
 
         key = '|'.join(key)
         values = '|'.join(values)
@@ -91,28 +93,33 @@ class ClusterManagerDispatcher(object):
         package_list = []
 
         packages = self._mapper.query('select_package_by_pathname', pathname)
+        print(packages)
+        searched_next_pack_id = None
 
         for _ in range(len(packages)):
-            searched_next_pack_id = None
+
             for package in packages:
+                package = list(package)
                 next_pack_id = package[2]
-                if next_pack_id == 'NULL' or (not next_pack_id):
+                if not next_pack_id:
                     next_pack_id = None
                 else:
                     next_pack_id = int(next_pack_id)
                 if next_pack_id == searched_next_pack_id:
                     package[2] = str(len(package_list))
                     searched_next_pack_id = int(package[1])
+                    package = map(lambda x: str(x), package)
                     package = ','.join(package)
                     package_list.insert(0, package)
+                    break
 
+        print('package_list', package_list)
         message = "&".join(("load", str(fd), *package_list))
 
         self._sender_inter.insert((message, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))
 
     def _write(self, data, *args, **kwargs):
         payload, address = data
-
         pathname, package_count = payload
 
         package_count = int(package_count)
@@ -127,23 +134,29 @@ class ClusterManagerDispatcher(object):
 
         pack_id_list = []
         result_dict = {}
+        print('####', node_list)
         for node in node_list:
-            package_id = int(self._mapper.query("insert_package", (node, file_id))[0][0][0])
-
-            if pack_id_list:
-                self._mapper.query("update_package", (package_id, pack_id_list[-1]))
+            parent_id = self._mapper.query("select_parent_id", file_id)
+            if parent_id:
+                parent_id = int(parent_id[0][0])
+            print('parent_id', parent_id)
+            package_id = int(self._mapper.query("insert_package", (node, file_id))[0][0])
+            print('---- package_id', package_id)
+            if parent_id:
+                self._mapper.query("update_package", (package_id, parent_id))
 
             pack_id_list.append(package_id)
             result_dict[(pathname, str(order_num))] = (node, package_id)
             order_num += 1
-
+        print('---- result_dict', result_dict)
         if order_num == package_count:
-            self._mapper.query("update_file_data", pack_id_list[0])
+            self._mapper.query("update_file_data", (pack_id_list[0], pathname))
 
         self._mapper.query("update_file_order_num", (order_num, pathname))
 
+        print('--------------- self', self.__serialize_dict(result_dict))
         message = "cache_add&" + self.__serialize_dict(result_dict)
-
+        print('$$$$$$$$$$$$$$$$$$$$', address, message)
         self._sender_inter.insert((message, (address[0], int(CF.get("Middleware", "port")))))
 
     def _create(self, data, *args, **kwargs):
@@ -161,6 +174,7 @@ class ClusterManagerDispatcher(object):
 
         self._mapper.query("update_directory_data", (file_id, dir_pathname))
 
+        print(')))))))))))))))))))))))))))))))', pathname)
         request = "&".join(("open", pathname, response_ip, response_port))
 
         self._sender_inter.insert((request, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))

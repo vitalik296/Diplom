@@ -8,12 +8,15 @@ CF = Config()
 
 
 def wrap(payload):
+    print(payload)
     format, value = payload
+    print(format, value)
     return struct.pack(format, value)
 
 
 def pack(*args):
-    return reduce(lambda x, y: wrap(x) + wrap(y), args)
+    res = map(lambda x: wrap(x), args)
+    return reduce(lambda x, y: x + y, res)
 
 
 class UDPHandler(BaseHandler):
@@ -36,7 +39,9 @@ class UDPHandler(BaseHandler):
 
     def execute(self, data, address):
 
-        fd = struct.unpack("i", data[:4])
+        print('dddddddddddddddddddd', data, address)
+
+        fd = struct.unpack("i", data[:4])[0]
 
         if fd == -1:
             self._handlers['udp_read'].add_task((data, address))
@@ -55,17 +60,22 @@ class UDPHandler(BaseHandler):
     def _write(self, data, *args, **kwargs):
         data, address = data
 
-        fd = struct.unpack("i", data[:4])
-        number = struct.unpack("I", data[4:8])
-        data_size = struct.unpack("I", data[8:12])
+        fd = struct.unpack("i", data[:4])[0]
+        number = struct.unpack("I", data[4:8])[0]
+        data_size = struct.unpack("I", data[8:12])[0]
+
+        print('!!!!!!!!!!!!!!!!!!!!!!!', fd, number, data_size)
 
         node_id, package_id = self._cache['package'].get((fd, number), (None, None))
+
+        print('@@@@!!!!!!!!!!!!!!!!!!!!!!!', node_id, package_id)
 
         if node_id:
 
             del self._cache['package'][(fd, number)]
 
-            buffer = pack((("i", -1), ("I", package_id), ("I", data_size), (CF.get("Package", "data") + "s", data[16: -2]), ("H", 0)))
+            buffer = pack(("i", -1), ("I", int(package_id)), ("I", data_size), (CF.get("Package", "data") + "s", data[12: -2]), ("H", 0))
+            print('buffer', buffer)
 
             ip, udp_port = self._mapper.query("get_node_address_by_node_id", node_id)[0]
 
@@ -76,10 +86,11 @@ class UDPHandler(BaseHandler):
     def _read(self, data, *args, **kwargs):
         data, _ = data
 
-        pack_id = struct.unpack("I", data[4:8])
+        pack_id = struct.unpack("I", data[4:8])[0]
 
-        pathname = self._mapper.query("get_pathname_by_pack_id", pack_id)[0]
+        pathname = self._mapper.query("get_pathname_by_pack_id", pack_id)[0][0]
 
+        print(self._cache)
         fd = int(self._cache["pathname"][pathname])
 
         order_num = self._cache['package'].get(pack_id, -1)
@@ -87,10 +98,11 @@ class UDPHandler(BaseHandler):
         if order_num != -1:
             del self._cache['package'][pack_id]
 
-        data = pack((("i", fd), ("I", order_num))) + data[8:-2] + pack(('H', 0))
+        data = pack(("i", fd), ("I", order_num)) + data[8:-2] + pack(('H', 0))
 
         client_address = self._cache['user'].get(fd, None)
 
         if client_address:
-            del self._cache['user'][fd]
-            self._udp_sender_inter.insert((data, (client_address['ip'], client_address['port'])))
+            # if
+                # del self._cache['user'][fd]
+            self._udp_sender_inter.insert((data, (client_address['ip'], client_address['udp_port'])))
