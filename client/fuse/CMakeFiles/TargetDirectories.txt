@@ -1,0 +1,3 @@
+/home/vitaliy/coursework/diplom/client/fuse/CMakeFiles/rebuild_cache.dir
+/home/vitaliy/coursework/diplom/client/fuse/CMakeFiles/fuse.dir
+/home/vitaliy/coursework/diplom/client/fuse/CMakeFiles/edit_cache.dir

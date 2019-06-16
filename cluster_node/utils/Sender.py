@@ -31,7 +31,7 @@ class Sender(object):
             if item:
                 data, address = item
                 tcp_socket = Socket.create_tcp()
-                print(address)
+                print(data, address)
                 tcp_socket.connect(address)
                 tcp_socket.send(tcp_request(data))
                 tcp_socket.close()
@@ -48,9 +48,9 @@ class Sender(object):
             if item:
                 data, address = item
 
-                print('RRRRRRRRRRRRRR', data, address)
+                print('Received', data, address)
                 a = udp_socket.sendto(data, address)
-                print('EEEEEEEEEEEEEE', a)
+                print('Sended', a)
 
         # udp_socket.close()
 

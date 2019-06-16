@@ -10,9 +10,7 @@ CF = Config()
 
 
 def wrap(payload):
-    print(payload)
     format, value = payload
-    print('    ', format, value)
     return struct.pack(format, value)
 
 
@@ -59,12 +57,13 @@ class Storage(BaseHandler):
         self._file.close()
 
     def execute(self, data, address):
-        print(data)
         try:
             command, *payload = data.decode("utf-8").split('&')
         except UnicodeDecodeError as e:
             payload = data
             command = "write"
+
+        print(command, payload)
 
         # if not payload:
         #     payload = command
@@ -108,7 +107,7 @@ class Storage(BaseHandler):
         self._file.seek(block_offset * self._block_size + in_block_offset)
         buffer = self._file.read(buffer_size - in_block_offset)
         buffer = pack(("i", -1), ("I", int(pack_id)), ("I", int(buffer_size)), (str(self._block_size) + "s", buffer), ("H", 0))  # TODO add checksum
-        print(buffer)
+
         self.__udo_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "udp_"
                                                                                                 "port")))))
 
@@ -117,13 +116,9 @@ class Storage(BaseHandler):
 
         package = payload
 
-        print(package)
-
         package_id = struct.unpack("I", package[4:8])[0]
         size = struct.unpack("I", package[8:12])[0]
         data = package[12:12 + size]
-
-        print(package_id, size, data)
 
         free_pack = self._mapper.query("get_free_package")
 

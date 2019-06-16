@@ -26,7 +26,6 @@ class ClusterManagerDispatcher(object):
         self._mapper = ClusterManagerMapper()
 
     def dispatch(self, data, address):
-        print(data)
         command, *payload = data.decode("utf-8").split('&')
         print(command, payload)
         handler = self._handlers.get(command, None)
@@ -93,7 +92,7 @@ class ClusterManagerDispatcher(object):
         package_list = []
 
         packages = self._mapper.query('select_package_by_pathname', pathname)
-        print(packages)
+
         searched_next_pack_id = None
 
         for _ in range(len(packages)):
@@ -113,7 +112,6 @@ class ClusterManagerDispatcher(object):
                     package_list.insert(0, package)
                     break
 
-        print('package_list', package_list)
         message = "&".join(("load", str(fd), *package_list))
 
         self._sender_inter.insert((message, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))
@@ -134,29 +132,28 @@ class ClusterManagerDispatcher(object):
 
         pack_id_list = []
         result_dict = {}
-        print('####', node_list)
+
         for node in node_list:
             parent_id = self._mapper.query("select_parent_id", file_id)
             if parent_id:
                 parent_id = int(parent_id[0][0])
-            print('parent_id', parent_id)
+
             package_id = int(self._mapper.query("insert_package", (node, file_id))[0][0])
-            print('---- package_id', package_id)
+
             if parent_id:
                 self._mapper.query("update_package", (package_id, parent_id))
 
             pack_id_list.append(package_id)
             result_dict[(pathname, str(order_num))] = (node, package_id)
             order_num += 1
-        print('---- result_dict', result_dict)
+
         if order_num == package_count:
             self._mapper.query("update_file_data", (pack_id_list[0], pathname))
 
         self._mapper.query("update_file_order_num", (order_num, pathname))
 
-        print('--------------- self', self.__serialize_dict(result_dict))
         message = "cache_add&" + self.__serialize_dict(result_dict)
-        print('$$$$$$$$$$$$$$$$$$$$', address, message)
+
         self._sender_inter.insert((message, (address[0], int(CF.get("Middleware", "port")))))
 
     def _create(self, data, *args, **kwargs):
@@ -174,7 +171,6 @@ class ClusterManagerDispatcher(object):
 
         self._mapper.query("update_directory_data", (file_id, dir_pathname))
 
-        print(')))))))))))))))))))))))))))))))', pathname)
         request = "&".join(("open", pathname, response_ip, response_port))
 
         self._sender_inter.insert((request, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))

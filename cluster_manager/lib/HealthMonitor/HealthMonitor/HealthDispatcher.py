@@ -25,7 +25,6 @@ class HealthDispatcher(object):
         # self._cache['fd'] = {}
 
     def dispatch(self, data, address):
-        print(data)
         command, *payload = data.decode("utf-8").split('&')
         print(command, payload)
         handler = self._handlers.get(command, None)
@@ -76,14 +75,10 @@ class HealthDispatcher(object):
 
         res, file_id = self._mapper.query("get_unready_package", (pack_id, pack_id))
 
-        print(res)
-
         res = res[0]
         file_id = file_id[0]
 
         self._mapper.query("update_file_size", (new_size, file_id))
-
-        print(res, file_id)
 
         self._cache[node_id]['pack_idle_count'] -= 1
         self._cache['node_load'][node_id] = self._cache[node_id]['pack_idle_count']*self._cache[node_id]['free_size']

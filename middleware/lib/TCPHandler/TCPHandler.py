@@ -46,7 +46,6 @@ class TCPHandler(BaseHandler):
         return -1
 
     def execute(self, data, address):
-        print(data)
         command, *payload = data.decode("utf-8").split('&')
         print(command, payload)
         handler = self._handlers.get(command, None)
@@ -77,10 +76,7 @@ class TCPHandler(BaseHandler):
 
         keys = keys.split('|')
         values = values.split('|')
-        print('--------------------')
-        print(keys)
-        print(values)
-        print('--------------------')
+
         for key in keys:
             pathname, order_num = key.split(',')
             fd = int(self._cache['pathname'][pathname])
@@ -95,8 +91,6 @@ class TCPHandler(BaseHandler):
 
         payload, address = data
         pathname, *response_address = payload
-
-        print('(((((((((((pathname))))))))))))))))', pathname)
 
         if len(response_address) == 2:
             response_ip = response_address[0]
@@ -113,7 +107,6 @@ class TCPHandler(BaseHandler):
         file_type, size, order = res
 
         fd = self.__create_fd()
-        print(fd, order)
 
         # TODO add exception
         if fd == -1:
@@ -157,12 +150,10 @@ class TCPHandler(BaseHandler):
 
     def _load(self, data, *args, **kwargs):
         payload, address = data
-        print('_load', payload)
+
         fd = int(payload.pop(0))
 
         pack_count = len(payload)
-        print(payload)
-        print(pack_count)
 
         client_address = self._cache["user"][fd]
 
@@ -174,7 +165,7 @@ class TCPHandler(BaseHandler):
             node_id, pack_id, order_num = value.split(",")
             ip, tcp_port = self._mapper.query("get_node_ip_tcp_port", int(node_id))[0]
 
-            self._cache["package"][int(pack_id)] = int(order_num)
+            self._cache["package"].update({ int(pack_id): int(order_num) })
 
             message = "&".join(("read", pack_id))
 
@@ -184,11 +175,7 @@ class TCPHandler(BaseHandler):
         payload, address = data
         fd, max_package_count, offset, udp_port, tcp_port = payload
         fd = int(fd)
-        self._cache["user"][fd] = {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)}
-
-        print(self._cache)
-        print(self._cache['fd'])
-        print(self._cache['fd'].get(fd, None))
+        self._cache["user"].update({ fd:  {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)} })
 
         pathname = self._cache['fd'].get(fd, None)
 
@@ -238,8 +225,6 @@ class TCPHandler(BaseHandler):
         payload, address = data
         pathname, response_port = payload
 
-        print('((((((((((((((((((((((((((((', pathname)
-
         if self._mapper.query('get_file_attr_by_pathname', pathname):
             return self._tcp_sender_inter.insert(("0&File Already Exists", (address[0], int(response_port))))
         else:
@@ -254,6 +239,5 @@ class TCPHandler(BaseHandler):
             return self._tcp_sender_inter.insert(("0&Directory Already Exists", (address[0], int(response_port))))
         else:
             request = "&".join(("mkdir", pathname))
-            print(request)
             self._tcp_sender_inter.insert((request, CLUSTER_MANAGER_ADDRESS))
             return self._tcp_sender_inter.insert(('1', (address[0], int(response_port))))

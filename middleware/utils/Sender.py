@@ -48,9 +48,9 @@ class Sender(object):
             if item:
                 data, address = item
 
-                print('RRRRRRRRRRRRRR', data, address)
+                print('received\n', data, address)
                 a = udp_socket.sendto(data, address)
-                print('EEEEEEEEEEEEEE', a)
+                print('sended', a)
 
         # udp_socket.close()
 

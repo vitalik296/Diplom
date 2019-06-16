@@ -8,9 +8,7 @@ CF = Config()
 
 
 def wrap(payload):
-    print(payload)
     format, value = payload
-    print(format, value)
     return struct.pack(format, value)
 
 
@@ -39,8 +37,6 @@ class UDPHandler(BaseHandler):
 
     def execute(self, data, address):
 
-        print('dddddddddddddddddddd', data, address)
-
         fd = struct.unpack("i", data[:4])[0]
 
         if fd == -1:
@@ -64,18 +60,13 @@ class UDPHandler(BaseHandler):
         number = struct.unpack("I", data[4:8])[0]
         data_size = struct.unpack("I", data[8:12])[0]
 
-        print('!!!!!!!!!!!!!!!!!!!!!!!', fd, number, data_size)
-
         node_id, package_id = self._cache['package'].get((fd, number), (None, None))
-
-        print('@@@@!!!!!!!!!!!!!!!!!!!!!!!', node_id, package_id)
 
         if node_id:
 
             del self._cache['package'][(fd, number)]
 
             buffer = pack(("i", -1), ("I", int(package_id)), ("I", data_size), (CF.get("Package", "data") + "s", data[12: -2]), ("H", 0))
-            print('buffer', buffer)
 
             ip, udp_port = self._mapper.query("get_node_address_by_node_id", node_id)[0]
 
@@ -90,7 +81,6 @@ class UDPHandler(BaseHandler):
 
         pathname = self._mapper.query("get_pathname_by_pack_id", pack_id)[0][0]
 
-        print(self._cache)
         fd = int(self._cache["pathname"][pathname])
 
         order_num = self._cache['package'].get(pack_id, -1)
