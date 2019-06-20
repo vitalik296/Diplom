@@ -30,6 +30,7 @@ class Sender(object):
 
             if item:
                 data, address = item
+                print(address)
                 tcp_socket = Socket.create_tcp()
                 print(data, address)
                 tcp_socket.connect(address)

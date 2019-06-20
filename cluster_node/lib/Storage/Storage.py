@@ -104,6 +104,8 @@ class Storage(BaseHandler):
             pass
 
     def _read(self, pack_id, buffer_size=int(CF.get("Storage", "block_size")), block_offset=0, in_block_offset=0):
+        print(block_offset, self._block_size + in_block_offset)
+        print(block_offset * self._block_size + in_block_offset)
         self._file.seek(block_offset * self._block_size + in_block_offset)
         buffer = self._file.read(buffer_size - in_block_offset)
         buffer = pack(("i", -1), ("I", int(pack_id)), ("I", int(buffer_size)), (str(self._block_size) + "s", buffer), ("H", 0))  # TODO add checksum

@@ -3,4 +3,5 @@
 tmp
 *.a
 */**/__pycache__
-
+*/**/starage.file
+*/**/starage.db

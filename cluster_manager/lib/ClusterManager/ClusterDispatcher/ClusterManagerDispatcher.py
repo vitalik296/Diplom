@@ -122,12 +122,14 @@ class ClusterManagerDispatcher(object):
 
         package_count = int(package_count)
 
-        node_list = self.__balance(package_count)
+        print("1")
 
+        node_list = self.__balance(package_count)
+        print("1.5")
         self._mapper.query("update_file_status", ("False", pathname))
 
         order_num, file_id = self._mapper.query("select_file_info", pathname)[0]
-
+        print("2")
         order_num = int(order_num)
 
         pack_id_list = []
@@ -147,6 +149,8 @@ class ClusterManagerDispatcher(object):
             result_dict[(pathname, str(order_num))] = (node, package_id)
             order_num += 1
 
+        print("3")
+
         if order_num == package_count:
             self._mapper.query("update_file_data", (pack_id_list[0], pathname))
 
@@ -154,7 +158,9 @@ class ClusterManagerDispatcher(object):
 
         message = "cache_add&" + self.__serialize_dict(result_dict)
 
-        self._sender_inter.insert((message, (address[0], int(CF.get("Middleware", "port")))))
+        print("HERE: ", message, CF.get("Middleware", "ip"))
+
+        self._sender_inter.insert((message, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "port")))))
 
     def _create(self, data, *args, **kwargs):
 

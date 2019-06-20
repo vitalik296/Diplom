@@ -186,10 +186,13 @@ class Cache(metaclass=NamedSingleton):
         return res
 
     def __getitem__(self, key):
-        self.__mutex.acquire()
-        res = self.__cache_dict[key]
-        self.__mutex.release()
-        return res
+        try:
+            self.__mutex.acquire()
+            res = self.__cache_dict[key]
+            self.__mutex.release()
+            return res
+        except Exception as exp:
+            print(exp)
 
     def __str__(self):
         return str(self.__cache_dict)

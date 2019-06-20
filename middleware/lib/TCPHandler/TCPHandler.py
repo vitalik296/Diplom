@@ -117,7 +117,7 @@ class TCPHandler(BaseHandler):
 
         res = "&".join((str(1), str(fd), str(order)))
 
-        self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
+        self._tcp_sender_inter.insert((res, (response_ip, int(response_port))))
 
     def _flush(self, data, *args, **kwargs):
         payload, address = data
