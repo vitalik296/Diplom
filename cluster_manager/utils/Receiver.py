@@ -1,10 +1,8 @@
 import select
-import socket
 import struct
 
 from .Config import Config
 from .Interaction import Interaction
-# from  import Socket
 from .utilities import Socket, StoppedThread
 
 CF = Config()

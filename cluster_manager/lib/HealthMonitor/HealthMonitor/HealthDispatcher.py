@@ -33,6 +33,8 @@ class HealthDispatcher(object):
             handler.add_task((payload, address))
         else:
             print("Bad command: ", command)
+        
+        #handler.delay((payload, address))
 
     def add_handler(self, key, handler_func):
         self._handlers[key] = TaskThread(target=handler_func, name=key)

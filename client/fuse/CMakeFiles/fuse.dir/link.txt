@@ -1,1 +1,0 @@
-/usr/bin/cc  -D_FILE_OFFSET_BITS=64 -g -Wall --pedantic -g  -rdynamic CMakeFiles/fuse.dir/fuse.c.o  -o bin/fuse  -L/home/vitaliy/coursework/diplom/client/fuse/libs -Wl,-rpath,/home/vitaliy/coursework/diplom/client/fuse/libs -lfuse -lpthread -Wl,-Bstatic -lutils -Wl,-Bdynamic 

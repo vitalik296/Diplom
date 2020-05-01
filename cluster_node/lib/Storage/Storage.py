@@ -3,6 +3,8 @@ import struct
 from threading import Timer
 from functools import reduce
 
+from celery import Celery
+
 from lib.Storage import StorageMapper
 from utils import Config, BaseHandler, TaskThread, Interaction
 
@@ -33,6 +35,9 @@ class Storage(BaseHandler):
         self._filed_memory = 0
         self._size = int(CF.get("Storage", "size"))
         self._seek = 0
+
+        # For test
+        self.__celery = Celery("cluster_node", broker="pyamqp://")
 
         self._node_id = None
 
@@ -65,9 +70,6 @@ class Storage(BaseHandler):
 
         print(command, payload)
 
-        # if not payload:
-        #     payload = command
-        #     command = "write"
         handler = self._handlers.get(command, None)
 
         if handler:
@@ -113,7 +115,7 @@ class Storage(BaseHandler):
         self.__udo_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "udp_"
                                                                                                 "port")))))
 
-    def udp_write(self, data, *args, **kwargs):
+    def udp_write(self, data):
         payload, address = data
 
         package = payload
@@ -147,7 +149,7 @@ class Storage(BaseHandler):
             ("alive&" + str(self._node_id) + "&True", (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
         Timer(int(CF.get("HealthMonitor", "repeat_timeout")), self.__is_alive_request).start()
 
-    def _init(self, data, *args, **kwargs):
+    def _init(self, data):
         payload, _ = data
         self._node_id = int(payload[0])
 

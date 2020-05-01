@@ -1,7 +1,7 @@
 [
 {
-  "directory": "/home/vitaliy/coursework/diplom/client/fuse",
-  "command": "/usr/bin/cc  -I/home/vitaliy/coursework/diplom/client/fuse/includes   -D_FILE_OFFSET_BITS=64 -g -Wall --pedantic -g   -o CMakeFiles/fuse.dir/fuse.c.o   -c /home/vitaliy/coursework/diplom/client/fuse/fuse.c",
-  "file": "/home/vitaliy/coursework/diplom/client/fuse/fuse.c"
+  "directory": "/home/vitalii/git/bachelor_diplom/client/fuse",
+  "command": "/usr/bin/cc  -I/home/vitalii/git/bachelor_diplom/client/fuse/includes   -D_FILE_OFFSET_BITS=64   -o CMakeFiles/fuse.dir/fuse.c.o   -c /home/vitalii/git/bachelor_diplom/client/fuse/fuse.c",
+  "file": "/home/vitalii/git/bachelor_diplom/client/fuse/fuse.c"
 }
 ]
