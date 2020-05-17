@@ -9,4 +9,3 @@ from .Transmitter import Transmitter
 from .BasicMapper import BasicMapper
 
 from .utilities import *
-

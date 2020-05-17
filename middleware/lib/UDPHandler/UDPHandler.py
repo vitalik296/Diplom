@@ -8,8 +8,8 @@ CF = Config()
 
 
 def wrap(payload):
-    format, value = payload
-    return struct.pack(format, value)
+    value_format, value = payload
+    return struct.pack(value_format, value)
 
 
 def pack(*args):
@@ -53,7 +53,7 @@ class UDPHandler(BaseHandler):
             handler.stop()
             handler.join()
 
-    def _write(self, data, *args, **kwargs):
+    def _write(self, data):
         data, address = data
 
         fd = struct.unpack("i", data[:4])[0]
@@ -66,7 +66,8 @@ class UDPHandler(BaseHandler):
 
             del self._cache['package'][(fd, number)]
 
-            buffer = pack(("i", -1), ("I", int(package_id)), ("I", data_size), (CF.get("Package", "data") + "s", data[12: -2]), ("H", 0))
+            buffer = pack(("i", -1), ("I", int(package_id)), ("I", data_size),
+                          (CF.get("Package", "data") + "s", data[12: -2]), ("H", 0))
 
             ip, udp_port = self._mapper.query("get_node_address_by_node_id", node_id)[0]
 
@@ -74,7 +75,7 @@ class UDPHandler(BaseHandler):
         else:
             self._request_inter.insert(("udp", data, address), 0)
 
-    def _read(self, data, *args, **kwargs):
+    def _read(self, data):
         data, _ = data
 
         pack_id = struct.unpack("I", data[4:8])[0]
@@ -93,6 +94,4 @@ class UDPHandler(BaseHandler):
         client_address = self._cache['user'].get(fd, None)
 
         if client_address:
-            # if
-                # del self._cache['user'][fd]
             self._udp_sender_inter.insert((data, (client_address['ip'], client_address['udp_port'])))

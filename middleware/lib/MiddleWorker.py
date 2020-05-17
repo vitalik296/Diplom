@@ -21,3 +21,4 @@ class MiddleWorker(Worker, metaclass=Singleton):
 
     def stop(self):
         self._tcp_worker.stop()
+        self._udp_worker.stop()

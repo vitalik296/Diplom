@@ -15,11 +15,9 @@ class StorageManager(metaclass=Singleton):
 
     def start(self):
         self.__transmitter.start()
-        # self.__health_monitor.start()
 
     def stop(self):
         self.__transmitter.stop()
-        # self.__health_monitor.stop()
 
 
 class StorageWorker(Worker, metaclass=Singleton):

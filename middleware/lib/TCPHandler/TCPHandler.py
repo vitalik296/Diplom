@@ -69,7 +69,7 @@ class TCPHandler(BaseHandler):
             handler.join()
 
     # CACHE OPERATION
-    def _cache_add(self, data, *args, **kwargs):
+    def _cache_add(self, data):
         payload, address = data
 
         keys, values = payload
@@ -83,11 +83,8 @@ class TCPHandler(BaseHandler):
             order_num = int(order_num)
             self._cache['package'].update({(fd, order_num): values.pop(0).split(',')})
 
-    def _cache_del(self, data, *args, **kwargs):
-        print("cache_del method: ", data)
-
     # FUSE OPERATION
-    def _open(self, data, *args, **kwargs):
+    def _open(self, data):
 
         payload, address = data
         pathname, *response_address = payload
@@ -119,7 +116,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert((res, (response_ip, int(response_port))))
 
-    def _flush(self, data, *args, **kwargs):
+    def _flush(self, data):
         payload, address = data
 
         fd, response_port = payload
@@ -133,7 +130,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert(('1', (address[0], int(response_port))))
 
-    def _getattr(self, data, *args, **kwargs):
+    def _getattr(self, data):
 
         payload, address = data
         path_name, response_port = payload
@@ -148,7 +145,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
 
-    def _load(self, data, *args, **kwargs):
+    def _load(self, data):
         payload, address = data
 
         fd = int(payload.pop(0))
@@ -165,17 +162,17 @@ class TCPHandler(BaseHandler):
             node_id, pack_id, order_num = value.split(",")
             ip, tcp_port = self._mapper.query("get_node_ip_tcp_port", int(node_id))[0]
 
-            self._cache["package"].update({ int(pack_id): int(order_num) })
+            self._cache["package"].update({int(pack_id): int(order_num)})
 
             message = "&".join(("read", pack_id))
 
             self._tcp_sender_inter.insert((message, (ip, int(tcp_port))))
 
-    def _read(self, data, *args, **kwargs):
+    def _read(self, data):
         payload, address = data
         fd, max_package_count, offset, udp_port, tcp_port = payload
         fd = int(fd)
-        self._cache["user"].update({ fd:  {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)} })
+        self._cache["user"].update({fd: {"ip": address[0], "tcp_port": int(tcp_port), "udp_port": int(udp_port)}})
 
         pathname = self._cache['fd'].get(fd, None)
 
@@ -188,7 +185,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert((message, CLUSTER_MANAGER_ADDRESS))
 
-    def _write(self, data, *args, **kwargs):
+    def _write(self, data):
 
         payload, address = data
 
@@ -205,7 +202,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert(("&".join(("write", pathname, package_count)), CLUSTER_MANAGER_ADDRESS))
 
-    def _readdir(self, data, *args, **kwargs):
+    def _readdir(self, data):
         payload, address = data
         path_name, response_port = payload
 
@@ -220,7 +217,7 @@ class TCPHandler(BaseHandler):
 
         self._tcp_sender_inter.insert((res, (address[0], int(response_port))))
 
-    def _create(self, data, *args, **kwargs):
+    def _create(self, data):
 
         payload, address = data
         pathname, response_port = payload
@@ -231,7 +228,7 @@ class TCPHandler(BaseHandler):
             request = "&".join(("create", pathname, address[0], response_port))
             self._tcp_sender_inter.insert((request, CLUSTER_MANAGER_ADDRESS))
 
-    def _mkdir(self, data, *args, **kwargs):
+    def _mkdir(self, data):
         payload, address = data
         pathname, response_port = payload
 

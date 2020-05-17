@@ -22,12 +22,14 @@ def pack(*args):
 
 
 class Storage(BaseHandler):
+    # For test
+    __celery = Celery("cluster_node", broker="pyamqp://")
 
     def __init__(self, **kwargs):
         super().__init__()
 
-        self.__tcp_sender = Interaction("tcp_sender")
-        self.__udo_sender = Interaction("udp_sender")
+        # self.__tcp_sender = Interaction("tcp_sender")
+        self.__udp_sender = Interaction("udp_sender")
 
         self._mapper = StorageMapper()
 
@@ -36,11 +38,16 @@ class Storage(BaseHandler):
         self._size = int(CF.get("Storage", "size"))
         self._seek = 0
 
-        # For test
-        self.__celery = Celery("cluster_node", broker="pyamqp://")
-
         self._node_id = None
 
+        self.__init__storage_file()
+
+        self._handlers = {"write": TaskThread(target=kwargs.get("write", self.udp_write), name="write")}
+
+    def __del__(self):
+        self._file.close()
+
+    def __init__storage_file(self):
         if os.path.isfile(CF.get("Storage", "file_path")):
             self._file = open(CF.get("Storage", "file_path"), 'r+b')
             self._filed_memory = int(self._mapper.query("select_filled_package")[0][0])
@@ -54,19 +61,9 @@ class Storage(BaseHandler):
                 print(str(100 * i / self._size * self._block_size) + "%")
                 self._mapper.query("initial_insert", i)
 
-        self._handlers = {"read": TaskThread(target=kwargs.get("read", self.tcp_read), name="read"),
-                          "write": TaskThread(target=kwargs.get("write", self.udp_write), name="write"),
-                          "init": TaskThread(target=kwargs.get("init", self._init), name="init")}
-
-    def __del__(self):
-        self._file.close()
-
     def execute(self, data, address):
-        try:
-            command, *payload = data.decode("utf-8").split('&')
-        except UnicodeDecodeError as e:
-            payload = data
-            command = "write"
+        payload = data
+        command = "write"
 
         print(command, payload)
 
@@ -77,21 +74,29 @@ class Storage(BaseHandler):
         else:
             print("Bad command: ", command)
 
+    # def start(self):
+    #     for handler in self._handlers.values():
+    #         handler.start()
+    #
+    #     message = "&".join(("init", CF.get("Receiver", "tcp_port"), CF.get("Receiver", "udp_port"),
+    #                         str(self._size - self._filed_memory)))
+    #
+    #     self.__tcp_sender.insert((message, (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+
     def start(self):
-        for handler in self._handlers.values():
-            handler.start()
-
-        message = "&".join(("init", CF.get("Receiver", "tcp_port"), CF.get("Receiver", "udp_port"),
-                            str(self._size - self._filed_memory)))
-
-        self.__tcp_sender.insert((message, (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+        self.__celery.worker_main()
+        self.__celery.send_task("health_monitor.init", args=(CF.get("Receiver", "ip"),
+                                                             CF.get("Receiver", "tcp_port"),
+                                                             CF.get("Receiver", "udp_port")
+                                                             , str(self._size - self._filed_memory)))
 
     def stop(self):
         for handler in self._handlers.values():
             handler.stop()
             handler.join()
 
-    def tcp_read(self, data, *args, **kwargs):
+    @__celery.task(name="node.read")
+    def tcp_read(self, data):
         payload, address = data
 
         package_id = payload[0]
@@ -110,9 +115,10 @@ class Storage(BaseHandler):
         print(block_offset * self._block_size + in_block_offset)
         self._file.seek(block_offset * self._block_size + in_block_offset)
         buffer = self._file.read(buffer_size - in_block_offset)
-        buffer = pack(("i", -1), ("I", int(pack_id)), ("I", int(buffer_size)), (str(self._block_size) + "s", buffer), ("H", 0))  # TODO add checksum
+        buffer = pack(("i", -1), ("I", int(pack_id)), ("I", int(buffer_size)), (str(self._block_size) + "s", buffer),
+                      ("H", 0))  # TODO add checksum
 
-        self.__udo_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "udp_"
+        self.__udp_sender.insert((buffer, (CF.get("Middleware", "ip"), int(CF.get("Middleware", "udp_"
                                                                                                 "port")))))
 
     def udp_write(self, data):
@@ -146,9 +152,11 @@ class Storage(BaseHandler):
 
     def __is_alive_request(self):
         self.__tcp_sender.insert(
-            ("alive&" + str(self._node_id) + "&True", (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+            ("alive&" + str(self._node_id) + "&True",
+             (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
         Timer(int(CF.get("HealthMonitor", "repeat_timeout")), self.__is_alive_request).start()
 
+    @__celery.task(name="node.init")
     def _init(self, data):
         payload, _ = data
         self._node_id = int(payload[0])
