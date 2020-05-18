@@ -1,9 +1,3 @@
-from lib.ClusterManager.ClusterManager import ClusterManager
-from lib.HealthMonitor.HealthManager import HealthManager
+from lib.ClusterCelery import cluster_manager
 
-cluster_manager = ClusterManager()
-health_monitor = HealthManager()
-
-cluster_manager.start()
-health_monitor.start()
-
+cluster_manager.worker_main()

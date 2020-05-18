@@ -1,12 +1,14 @@
 import os
 import struct
-from threading import Timer
+import uuid
 from functools import reduce
+from threading import Timer, Thread
 
 from celery import Celery
+from kombu import Exchange, Queue
 
 from lib.Storage import StorageMapper
-from utils import Config, BaseHandler, TaskThread, Interaction
+from utils import Config, TaskThread, Interaction
 
 CF = Config()
 
@@ -21,14 +23,20 @@ def pack(*args):
     return reduce(lambda x, y: x + y, res)
 
 
-class Storage(BaseHandler):
+class Storage(object):
     # For test
-    __celery = Celery("cluster_node", broker="pyamqp://")
+    node_id = str(uuid.uuid4().hex)
+    celery = Celery(node_id, broker="pyamqp://")
 
     def __init__(self, **kwargs):
+        print(self.node_id)
         super().__init__()
 
-        # self.__tcp_sender = Interaction("tcp_sender")
+        self.celery.conf.task_queues = (
+            Queue(self.node_id, exchange=Exchange(name=self.node_id, type="topic"),
+                  routing_key=f'cluster.{self.node_id}.*'),
+        )
+
         self.__udp_sender = Interaction("udp_sender")
 
         self._mapper = StorageMapper()
@@ -44,8 +52,22 @@ class Storage(BaseHandler):
 
         self._handlers = {"write": TaskThread(target=kwargs.get("write", self.udp_write), name="write")}
 
+        self.celery.send_task(name="health_monitor.init",
+                              args=(self.node_id,
+                                    CF.get("Receiver", "ip"),
+                                    CF.get("Receiver", "udp_port"),
+                                    self._size - self._filed_memory),
+                              exchange="health_monitor",
+                              routing_key="health_monitor.init")
+
     def __del__(self):
         self._file.close()
+
+    def __start_thread(self):
+        self.celery.worker_main()
+
+    def start(self):
+        Thread(name=self.node_id, target=self.__start_thread).start()
 
     def __init__storage_file(self):
         if os.path.isfile(CF.get("Storage", "file_path")):
@@ -61,45 +83,8 @@ class Storage(BaseHandler):
                 print(str(100 * i / self._size * self._block_size) + "%")
                 self._mapper.query("initial_insert", i)
 
-    def execute(self, data, address):
-        payload = data
-        command = "write"
-
-        print(command, payload)
-
-        handler = self._handlers.get(command, None)
-
-        if handler:
-            handler.add_task((payload, address))
-        else:
-            print("Bad command: ", command)
-
-    # def start(self):
-    #     for handler in self._handlers.values():
-    #         handler.start()
-    #
-    #     message = "&".join(("init", CF.get("Receiver", "tcp_port"), CF.get("Receiver", "udp_port"),
-    #                         str(self._size - self._filed_memory)))
-    #
-    #     self.__tcp_sender.insert((message, (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
-
-    def start(self):
-        self.__celery.worker_main()
-        self.__celery.send_task("health_monitor.init", args=(CF.get("Receiver", "ip"),
-                                                             CF.get("Receiver", "tcp_port"),
-                                                             CF.get("Receiver", "udp_port")
-                                                             , str(self._size - self._filed_memory)))
-
-    def stop(self):
-        for handler in self._handlers.values():
-            handler.stop()
-            handler.join()
-
-    @__celery.task(name="node.read")
-    def tcp_read(self, data):
-        payload, address = data
-
-        package_id = payload[0]
+    @celery.task(name="node.read", queue=f"cluster.{node_id}", routing_key=f"cluster.{node_id}.read", )
+    def tcp_read(self, package_id):
 
         result = self._mapper.query("get_package", package_id)
 
@@ -137,9 +122,10 @@ class Storage(BaseHandler):
             self._write(data, block_offset, inblock_offset)
             self._mapper.query("update_package", (package_id, 0, size, id))
 
-            message = "&".join(("status", str(size), str(self._node_id), str(package_id), "True"))
-
-            self.__tcp_sender.insert((message, (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+            self.celery.send_task(name="health_monitor.status",
+                                  args=(str(size), self.node_id, str(package_id), "True"),
+                                  exchange="health_monitor",
+                                  routing_key="health_monitor.status")
         else:
             # TODO add else statement and handler
             pass
@@ -151,14 +137,10 @@ class Storage(BaseHandler):
         self._file.flush()
 
     def __is_alive_request(self):
-        self.__tcp_sender.insert(
-            ("alive&" + str(self._node_id) + "&True",
-             (CF.get("HealthMonitor", "ip"), int(CF.get("HealthMonitor", "port")))))
+        print("here")
+        self.celery.send_task(name="health_monitor.alive",
+                              args=(self.node_id, "True"),
+                              exchange="health_monitor",
+                              routing_key="health_monitor.alive")
         Timer(int(CF.get("HealthMonitor", "repeat_timeout")), self.__is_alive_request).start()
 
-    @__celery.task(name="node.init")
-    def _init(self, data):
-        payload, _ = data
-        self._node_id = int(payload[0])
-
-        self.__is_alive_request()

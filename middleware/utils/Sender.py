@@ -7,9 +7,6 @@ from .utilities import Socket, StoppedThread
 
 CF = Config()
 
-TCP = 0
-UDP = 1
-
 PACKAGE_SIZE = int(CF.get("Package", "size"))
 
 
@@ -23,7 +20,6 @@ class Sender(object):
 
     @staticmethod
     def __base_tcp(is_alive):
-        # tcp_response = Interaction("tcp_response")
 
         while is_alive():
             item = Interaction("tcp_sender").remove()

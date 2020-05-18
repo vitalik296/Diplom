@@ -7,17 +7,9 @@ class HealthMapper(BasicMapper):
         super().__init__(load_from_schema=False, **kwargs)
 
         self._queries.update({
-            "get_node_by_address":  """
-                                SELECT
-                                    node_id
-                                FROM
-                                    public.Node
-                                WHERE
-                                    ip=%s AND tcp_port=%s;
-                                    """,
             "insert_new_node": """
                                 INSERT INTO
-                                    public.Node(ip, tcp_port, udp_port)
+                                    public.Node(node_id, ip, udp_port)
                                 VALUES
                                     (%s, %s, %s)
                                 RETURNING
