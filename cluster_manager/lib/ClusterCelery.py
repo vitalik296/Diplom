@@ -5,7 +5,7 @@ from celery import Celery
 from kombu import Queue, Exchange
 
 
-cluster_manager = Celery("cluster_manager", broker="pyamqp://",
+cluster_manager = Celery("cluster_manager", broker="pyamqp://", backend="rpc://",
                          include=['lib.ClusterManager.ClusterManager', 'lib.HealthMonitor.HealthMonitor'])
 
 

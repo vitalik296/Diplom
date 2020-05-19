@@ -1,6 +1,7 @@
+from abc import ABC
 from copy import copy
 
-from kombu import Queue
+from celery import Task
 
 from lib.ClusterCelery import cluster_manager
 from lib.ClusterManager.ClusterManagerMapper import ClusterManagerMapper
@@ -9,7 +10,7 @@ from utils import Cache, Config
 CF = Config()
 
 
-class ClusterManager(object):
+class ClusterManager(Task, ABC):
 
     def __init__(self):
         super().__init__()
@@ -54,107 +55,122 @@ class ClusterManager(object):
 
         return "&".join((key, values))
 
-    # FILE SYSTEM OPERATIONS
-    @cluster_manager.task(name="cluster_manager.read", queue="cluster_manager", routing_key="cluster_manager.read")
-    def read(self, fd, pathname):
-        package_list = []
 
-        packages = self._mapper.query('select_package_by_pathname', pathname)
+# FILE SYSTEM OPERATIONS
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.read", queue="cluster_manager",
+                      routing_key="cluster_manager.read")
+def read(cls, fd, pathname):
+    print(f"Task: read. Parameters: fd={fd}, pathname={pathname}")
 
-        searched_next_pack_id = None
+    package_list = []
 
-        for _ in range(len(packages)):
+    packages = cls._mapper.query('select_package_by_pathname', pathname)
 
-            for package in packages:
-                package = list(package)
-                next_pack_id = package[2]
-                if not next_pack_id:
-                    next_pack_id = None
-                else:
-                    next_pack_id = int(next_pack_id)
-                if next_pack_id == searched_next_pack_id:
-                    package[2] = str(len(package_list))
-                    searched_next_pack_id = int(package[1])
-                    package = map(lambda x: str(x), package)
-                    package = ','.join(package)
-                    package_list.insert(0, package)
-                    break
+    searched_next_pack_id = None
 
-        cluster_manager.send_task(name="middleware.load",
-                                  args=(str(fd), *package_list),
-                                  exchange="middleware",
-                                  routing_key="middleware.load")
+    for _ in range(len(packages)):
 
-    @cluster_manager.task(name="cluster_manager.write", queue="cluster_manager", routing_key="cluster_manager.write")
-    def write(self, pathname, package_count):
-        package_count = int(package_count)
+        for package in packages:
+            package = list(package)
+            next_pack_id = package[2]
+            if not next_pack_id:
+                next_pack_id = None
+            else:
+                next_pack_id = int(next_pack_id)
+            if next_pack_id == searched_next_pack_id:
+                package[2] = str(len(package_list))
+                searched_next_pack_id = int(package[1])
+                package = map(lambda x: str(x), package)
+                package = ','.join(package)
+                package_list.insert(0, package)
+                break
 
-        node_list = self.__balance(package_count)
-        self._mapper.query("update_file_status", ("False", pathname))
+    cluster_manager.send_task(name="middleware.load",
+                              args=(str(fd), *package_list),
+                              exchange="middleware",
+                              routing_key="middleware.load")
 
-        order_num, file_id = self._mapper.query("select_file_info", pathname)[0]
-        order_num = int(order_num)
 
-        pack_id_list = []
-        result_dict = {}
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.write", queue="cluster_manager",
+                      routing_key="cluster_manager.write")
+def write(cls, pathname, package_count):
+    print(f"Task: write. Parameters: pathname={pathname}, package_count={package_count}")
 
-        for node in node_list:
-            parent_id = self._mapper.query("select_parent_id", file_id)
-            if parent_id:
-                parent_id = int(parent_id[0][0])
+    package_count = int(package_count)
 
-            package_id = int(self._mapper.query("insert_package", (node, file_id))[0][0])
+    node_list = cls.__balance(package_count)
+    cls._mapper.query("update_file_status", ("False", pathname))
 
-            if parent_id:
-                self._mapper.query("update_package", (package_id, parent_id))
+    order_num, file_id = cls._mapper.query("select_file_info", pathname)[0]
+    order_num = int(order_num)
 
-            pack_id_list.append(package_id)
-            result_dict[(pathname, str(order_num))] = (node, package_id)
-            order_num += 1
+    pack_id_list = []
+    result_dict = {}
 
-        if order_num == package_count:
-            self._mapper.query("update_file_data", (pack_id_list[0], pathname))
+    for node in node_list:
+        parent_id = cls._mapper.query("select_parent_id", file_id)
+        if parent_id:
+            parent_id = int(parent_id[0][0])
 
-        self._mapper.query("update_file_order_num", (order_num, pathname))
+        package_id = int(cls._mapper.query("insert_package", (node, file_id))[0][0])
 
-        cluster_manager.send_task(name="middleware.cache_add",
-                                  args=(self.__serialize_dict(result_dict),),
-                                  exchange="middleware",
-                                  routing_key="middleware.cache_add")
+        if parent_id:
+            cls._mapper.query("update_package", (package_id, parent_id))
 
-    @cluster_manager.task(name="cluster_manager.create", queue="cluster_manager", routing_key="cluster_manager.create")
-    def create(self, pathname, response_ip, response_port):
+        pack_id_list.append(package_id)
+        result_dict[(pathname, str(order_num))] = (node, package_id)
+        order_num += 1
 
-        file_id = self._mapper.query("insert_file", pathname, last_row_id=True)[0][0][0]
+    if order_num == package_count:
+        cls._mapper.query("update_file_data", (pack_id_list[0], pathname))
 
-        dir_pathname = pathname.rsplit('/', 1)[0]
+    cls._mapper.query("update_file_order_num", (order_num, pathname))
 
-        if not dir_pathname:
-            dir_pathname = '/'
+    cluster_manager.send_task(name="middleware.cache_add",
+                              args=(cls.__serialize_dict(result_dict),),
+                              exchange="middleware",
+                              routing_key="middleware.cache_add")
 
-        self._mapper.query("update_directory_data", (file_id, dir_pathname))
 
-        cluster_manager.send_task(name="middleware.open",
-                                  args=(pathname, response_ip, response_port),
-                                  exchange="middleware",
-                                  routing_key="middleware.open")
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.create", queue="cluster_manager",
+                      routing_key="cluster_manager.create")
+def create(cls, pathname, response_ip, response_port):
+    print(f"Task: create. Parameters: pathname={pathname}, response_ip={response_ip}, response_port={response_port}")
 
-    @cluster_manager.task(name="cluster_manager.create", queue="cluster_manager", routing_key="cluster_manager.mkdir")
-    def mkdir(self, pathname):
+    file_id = cls._mapper.query("insert_file", pathname, last_row_id=True)[0][0][0]
 
-        file_id = self._mapper.query("insert_directory", pathname)[0][0]
+    dir_pathname = pathname.rsplit('/', 1)[0]
 
-        pathname = str(pathname)
+    if not dir_pathname:
+        dir_pathname = '/'
 
-        parent_dir_pathname = pathname.rsplit('/', 1)[0]
+    cls._mapper.query("update_directory_data", (file_id, dir_pathname))
 
-        if not parent_dir_pathname:
-            parent_dir_pathname = '/'
+    cluster_manager.send_task(name="middleware.open",
+                              args=(pathname, response_ip, response_port),
+                              exchange="middleware",
+                              routing_key="middleware.open")
 
-        if parent_dir_pathname != pathname:
-            self._mapper.query("update_directory_data", (file_id, parent_dir_pathname))
 
-    @cluster_manager.task(name="cluster_manager.status", queue="cluster_manager", routing_key="cluster_manager.status")
-    def status(self, file_id, status):
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.create", queue="cluster_manager",
+                      routing_key="cluster_manager.mkdir")
+def mkdir(cls, pathname):
+    print(f"Task: mkdir. Parameters: pathname={pathname}")
 
-        self._mapper.query("update_file_status_by_file_id", (status, file_id))
+    file_id = cls._mapper.query("insert_directory", pathname)[0][0]
+
+    parent_dir_pathname = pathname.rsplit('/', 1)[0]
+
+    if not parent_dir_pathname:
+        parent_dir_pathname = '/'
+
+    if parent_dir_pathname != pathname:
+        cls._mapper.query("update_directory_data", (file_id, parent_dir_pathname))
+
+
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.status", queue="cluster_manager",
+                      routing_key="cluster_manager.status")
+def status(cls, file_id, new_status):
+    print(f"Task: status. Parameters: file_id={file_id}, new_status={new_status}")
+
+    cls._mapper.query("update_file_status_by_file_id", (new_status, file_id))

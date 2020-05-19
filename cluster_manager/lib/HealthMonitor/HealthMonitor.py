@@ -21,14 +21,17 @@ class HealthMonitor(Task, ABC):
         self._mapper = HealthMapper()
 
 
-@cluster_manager.task(name="health_monitor.alive", queue="health_monitor", routing_key="health_monitor.alive")
+@cluster_manager.task(bind=True, base=HealthMonitor, name="health_monitor.alive", queue="health_monitor",
+                      routing_key="health_monitor.alive")
 def _alive(self, uuid, status):
+    print(f"Task: alive. Parameters: uuid={uuid}, status={status}")
+
     if self._cache.get(uuid, None):
         if self._cache[uuid]['timer']:
             self._cache[uuid]['timer'].cancel()
 
     if status == "True":
-        self._cache[uuid]['timer'] = Timer(int(CF.get("Node", "node_live_timeout")), self._alive,
+        self._cache[uuid]['timer'] = Timer(int(CF.get("Node", "node_live_timeout")), _alive,
                                            args=[((uuid, "False"), ())])
         self._cache[uuid]['timer'].start()
     elif self._cache.get(uuid, None):
@@ -36,19 +39,23 @@ def _alive(self, uuid, status):
         del self._cache['node_load'][uuid]
 
 
-@cluster_manager.task(name="health_monitor.status", queue="health_monitor", routing_key="health_monitor.status")
-def _status(self, new_size, uuid, pack_id, status):
-    self._mapper.query("update_package_status", (status, pack_id))
+@cluster_manager.task(bind=True, base=HealthMonitor, name="health_monitor.status", queue="health_monitor",
+                      routing_key="health_monitor.status")
+def _status(cls, new_size, uuid, pack_id, status):
 
-    res, file_id = self._mapper.query("get_unready_package", (pack_id, pack_id))
+    print(f"Task: status. Parameters: new_size={new_size}, uuid={uuid}, pack_id={pack_id}, status={status}")
+
+    cls._mapper.query("update_package_status", (status, pack_id))
+
+    res, file_id = cls._mapper.query("get_unready_package", (pack_id, pack_id))
 
     res = res[0]
     file_id = file_id[0]
 
-    self._mapper.query("update_file_size", (new_size, file_id))
+    cls._mapper.query("update_file_size", (new_size, file_id))
 
-    self._cache[uuid]['pack_idle_count'] -= 1
-    self._cache['node_load'][uuid] = self._cache[uuid]['pack_idle_count'] * self._cache[uuid]['free_size']
+    cls._cache[uuid]['pack_idle_count'] -= 1
+    cls._cache['node_load'][uuid] = cls._cache[uuid]['pack_idle_count'] * cls._cache[uuid]['free_size']
 
     if not res:
         cluster_manager.send_task(name="cluster_manager.status",
@@ -60,7 +67,13 @@ def _status(self, new_size, uuid, pack_id, status):
 @cluster_manager.task(bind=True, base=HealthMonitor, name="health_monitor.init", queue="health_monitor",
                       routing_key="health_monitor.init")
 def _init(cls, uuid, ip, udp_port, free_size):
-    cls._mapper.query("insert_new_node", (uuid, ip, udp_port))
+
+    print(f"Task: init. Parameters: uuid={uuid}, ip={ip}, udp_port={udp_port}, free_size={free_size}")
+
+    node = cls._mapper.query("get_node_by_uuid", uuid)
+
+    if not node:
+        cls._mapper.query("insert_new_node", (uuid, ip, udp_port))
 
     cls._cache[uuid] = {'timer': None,
                         'ip': ip,

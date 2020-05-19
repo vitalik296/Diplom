@@ -1,5 +1,10 @@
-from lib.StorageWorker import StorageManager
+from lib.StorageCelery import storage, node_id, udp_receiver
+from utils import Socket, Config
 
-node_manager = StorageManager()
+CF = Config()
 
-node_manager.start()
+DEFAULT_UDP = (CF.get("Receiver", "ip"), int(CF.get("Receiver", "udp_port")))
+
+udp_receiver(Socket.create_and_bind_udp(DEFAULT_UDP), "node.write", f"cluster.{node_id}")
+
+storage.worker_main()

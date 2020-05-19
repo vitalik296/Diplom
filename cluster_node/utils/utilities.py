@@ -1,7 +1,6 @@
 import socket
-import time
 from queue import PriorityQueue, Queue
-from threading import Thread, Lock, Event, Timer
+from threading import Thread, Event
 
 
 class Singleton(type):
@@ -94,7 +93,8 @@ class StoppedThread(Thread):
         return not self.stopper.is_set()
 
     def run(self):
-        self._target(self.is_alive, *self._args, **self._kwargs)
+        while self.is_alive():
+            self._target()
 
     def start(self):
         super().start()
@@ -104,98 +104,3 @@ class StoppedThread(Thread):
         print(self.name, "stopping...")
         self.stopper.set()
         print(self.name, "stopped")
-
-
-class TaskThread(StoppedThread):
-
-    def __init__(self, target=None, name=None, delay=60, *args, **kwargs):
-        super().__init__(target=target, name=name, args=args, kwargs=kwargs)
-        self.lock = Lock()
-        self.task_queue = []
-        self.__delay = delay
-        self.__timer = None
-        self.__is_timer_set = Event()
-
-    def run(self):
-        while not self.stopper.is_set():
-
-            if bool(self.task_queue):
-
-                if self.__is_timer_set.is_set():
-                    self.__timer_stop()
-                    self.__is_timer_set.clear()
-
-                data = self.__get_task()
-                self._target(data, *self._args, **self._kwargs)
-
-            elif not self.__is_timer_set.is_set():
-                self.__is_timer_set.set()
-                self.__timer = Timer(self.__delay, self.stop)
-                self.__timer.start()
-
-    def __get_task(self):
-        self.lock.acquire()
-        data = self.task_queue.pop(0)
-        self.lock.release()
-        return data
-
-    def __timer_stop(self):
-        self.__timer.cancel()
-
-    def stop(self):
-        super().stop()
-        self.__timer_stop()
-        print(self.name, "Sleeping...")
-
-    def _restart(self):
-        print("Waking up ...")
-        self.stopper.clear()
-        self.__is_timer_set.clear()
-        self._started.clear()
-        self.start()
-
-    def add_task(self, data):
-        self.lock.acquire()
-        self.task_queue.insert(len(self.task_queue), data)
-        self.lock.release()
-        if self.stopper.is_set():
-            self._restart()
-
-
-class Cache(metaclass=NamedSingleton):
-    def __init__(self, _):
-        self.__cache_dict = {}
-        self.__mutex = Lock()
-
-    def __setitem__(self, key, item):
-        self.__mutex.acquire()
-        self.__cache_dict[key] = item
-        self.__mutex.release()
-
-    def __delitem__(self, key):
-        self.__mutex.acquire()
-        del self.__cache_dict[key]
-        self.__mutex.release()
-
-    def get(self, key, default=None):
-        try:
-            res = self.__getitem__(key)
-        except KeyError:
-            res = default
-
-        return res
-
-    def __getitem__(self, key):
-        self.__mutex.acquire()
-        res = self.__cache_dict[key]
-        self.__mutex.release()
-        return res
-
-    def __str__(self):
-        return str(self.__cache_dict)
-
-    def keys(self):
-        return list(self.__cache_dict.keys())
-
-    def values(self):
-        return list(self.__cache_dict.values())
