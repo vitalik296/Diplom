@@ -86,7 +86,7 @@ def read(cls, fd, pathname):
                 break
 
     cluster_manager.send_task(name="middleware.load",
-                              args=(str(fd), *package_list),
+                              args=(fd, package_list),
                               exchange="middleware",
                               routing_key="middleware.load")
 
@@ -118,7 +118,7 @@ def write(cls, pathname, package_count):
             cls._mapper.query("update_package", (package_id, parent_id))
 
         pack_id_list.append(package_id)
-        result_dict[(pathname, str(order_num))] = (node, package_id)
+        result_dict[(pathname, order_num)] = (node, package_id)
         order_num += 1
 
     if order_num == package_count:
@@ -127,7 +127,7 @@ def write(cls, pathname, package_count):
     cls._mapper.query("update_file_order_num", (order_num, pathname))
 
     cluster_manager.send_task(name="middleware.cache_add",
-                              args=(cls.__serialize_dict(result_dict),),
+                              args=(result_dict,),
                               exchange="middleware",
                               routing_key="middleware.cache_add")
 
@@ -147,12 +147,12 @@ def create(cls, pathname, response_ip, response_port):
     cls._mapper.query("update_directory_data", (file_id, dir_pathname))
 
     cluster_manager.send_task(name="middleware.open",
-                              args=(pathname, response_ip, response_port),
+                              args=(pathname, (response_ip, response_port)),
                               exchange="middleware",
                               routing_key="middleware.open")
 
 
-@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.create", queue="cluster_manager",
+@cluster_manager.task(bind=True, base=ClusterManager, name="cluster_manager.mkdir", queue="cluster_manager",
                       routing_key="cluster_manager.mkdir")
 def mkdir(cls, pathname):
     print(f"Task: mkdir. Parameters: pathname={pathname}")

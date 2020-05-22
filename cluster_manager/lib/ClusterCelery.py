@@ -1,6 +1,3 @@
-from abc import ABC
-
-import celery
 from celery import Celery
 from kombu import Queue, Exchange
 

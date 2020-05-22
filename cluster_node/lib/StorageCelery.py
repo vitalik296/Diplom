@@ -5,6 +5,7 @@ import uuid
 from celery import Celery
 from kombu import Queue, Exchange
 
+from lib.Storage.Tasks import udp_write
 from utils import Config, StoppedThread, Interaction
 
 CF = Config()
@@ -20,26 +21,26 @@ def checksum_compare(package):
     return True
 
 
-def udp_receiver(udp_socket, name, queue):
+def udp_receiver(udp_socket, queue):
     interaction = Interaction("receive")
 
-    iputs_list = [udp_socket]
+    inputs_list = [udp_socket]
 
     def receive():
-        readable, *_ = select.select(iputs_list, [], [], SOCKET_TIMEOUT)
+        readable, *_ = select.select(inputs_list, [], [], SOCKET_TIMEOUT)
 
         for s in readable:
             package, address = s.recvfrom(PACKAGE_SIZE)
 
             if checksum_compare(package):
                 interaction.insert((package, address), 0)
-                storage.send_task(name=name, queue=queue)
+                udp_write.delay(queue=f"{node_id}")
             else:
                 # TODO add false handler
                 pass
             s.sendto(struct.pack('h', 0), address)
 
-    StoppedThread(name=name, target=receive).start()
+    StoppedThread(name="udp_receiver", target=receive).start()
 
 
 storage = Celery(node_id, broker="pyamqp://", include=["lib.Storage.Tasks"], backend="rpc://")

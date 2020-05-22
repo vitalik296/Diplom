@@ -1,5 +1,4 @@
 import select
-import socket
 import struct
 
 from .Config import Config
@@ -10,7 +9,6 @@ from .utilities import Socket, StoppedThread
 CF = Config()
 
 DEFAULT_TCP = (CF.get("Receiver", "ip"), int(CF.get("Receiver", "tcp_port")))
-DEFAULT_UDP = (CF.get("Receiver", "ip"), int(CF.get("Receiver", "udp_port")))
 
 PACKAGE_SIZE = int(CF.get("Package", "size"))
 
@@ -50,62 +48,18 @@ def base_tcp(is_alive, tcp_socket):
                     s.close()
 
 
-def crc16(buffer, size):
-    crc = 0
-
-    for i in range(0, size):
-        crc ^= buffer[i]
-        for j in range(0, 8):
-            if (crc & 1) > 0:
-                crc = (crc >> 1) ^ 0x8005
-            else:
-                crc = crc >> 1
-
-    return crc
-
-
-def checksum_compare(package, checksum):
-    # return crc16(package, PACKAGE_SIZE-2) == checksum
-    return True
-
-
-def base_udp(is_alive, udp_socket):
-    interaction = Interaction("receive")
-
-    # udp_socket.settimeout(5)
-
-    iputs_list = [udp_socket]
-
-    while is_alive():
-
-        readable, *_ = select.select(iputs_list, [], [], SOCKET_TIMEOUT)
-
-        for s in readable:
-            package, address = s.recvfrom(PACKAGE_SIZE)
-
-            *_, checksum = struct.unpack('<III' + str(512) + 'sH', package)
-
-            if checksum_compare(package, checksum):
-                interaction.insert(("udp", package, address), 0)
-                udp_socket.sendto(struct.pack('h', 1), address)
-            else:
-                s.sendto(struct.pack('h', 0), address)
-
-
 class Receiver(object):
-    def __init__(self, tcp_address=DEFAULT_TCP, udp_address=DEFAULT_UDP):
+    def __init__(self, tcp_address=DEFAULT_TCP):
         self._threads = []
         self._tcp_socket = Socket.create_and_bind_tcp(tcp_address)
-        self._udp_socket = Socket.create_and_bind_udp(udp_address)
 
     def __start_thread(self, name, callback, args=None):
         self._threads.append(StoppedThread(name=name, target=callback, args=args))
         # self._threads[-1].daemon = True
         self._threads[-1].start()
 
-    def start(self, tcp_request=base_tcp, udp_request=base_udp):
+    def start(self, tcp_request=base_tcp):
         self.__start_thread(name="request-tcp", callback=tcp_request, args=(self._tcp_socket,))
-        self.__start_thread(name="request-udp", callback=udp_request, args=(self._udp_socket,))
 
     def stop(self):
         for thread in self._threads:
@@ -113,4 +67,3 @@ class Receiver(object):
             thread.join()
 
         self._tcp_socket.close()
-        self._udp_socket.close()

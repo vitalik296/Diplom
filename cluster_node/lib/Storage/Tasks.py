@@ -13,7 +13,7 @@ class StorageTask(Task, ABC):
         self.storage = Storage()
 
 
-@storage.task(bind=True, base=StorageTask, name="node.read", queue=f"cluster.{node_id}",
+@storage.task(bind=True, base=StorageTask, name="node.read", queue=f"{node_id}",
               routing_key=f"cluster.{node_id}.read")
 def tcp_read(cls, package_id):
     print(f"Task: read. Parameters: package_id={package_id}")
@@ -28,7 +28,7 @@ def tcp_read(cls, package_id):
         pass
 
 
-@storage.task(bind=True, base=StorageTask, name="node.write", queue=f"cluster.{node_id}",
+@storage.task(bind=True, base=StorageTask, name="node.write", queue=f"{node_id}",
               routing_key=f"cluster.{node_id}.write")
 def udp_write(cls):
     data = cls.storage.udp_receiver.remove()
@@ -56,9 +56,9 @@ def udp_write(cls):
         pass
 
 
-@storage.task(bind=True, base=StorageTask, name="node.send_udp", queue=f"cluster.{node_id}",
+@storage.task(bind=True, base=StorageTask, name="node.send_udp", queue=f"{node_id}",
               routing_key=f"cluster.{node_id}.send_udp")
-def __base_udp(cls):
+def base_udp(cls):
     udp_socket = Socket.create_udp()
 
     item = cls.storage.udp_sender.remove()

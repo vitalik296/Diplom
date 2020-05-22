@@ -1,4 +1,4 @@
-from .Receiver import Receiver, base_tcp, base_udp
+from .Receiver import Receiver, base_tcp
 from .Sender import Sender
 from .Worker import Worker
 from .InteractionListener import InteractionListener
@@ -14,7 +14,7 @@ class Transmitter(object):
 
         self.__worker = worker()
 
-    def start(self, receivers=(base_tcp, base_udp), senders=()):
+    def start(self, receivers=(base_tcp,), senders=()):
         self.__receiver.start(*receivers)
 
         self.__sender.start(*senders)
