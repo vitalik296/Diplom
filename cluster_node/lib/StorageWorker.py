@@ -1,10 +1,6 @@
 from lib.Storage import Storage
 from utils import Transmitter, Singleton, Worker
 
-from celery import Celery
-
-app = Celery('cluster_node', backend='pyamqp://')
-
 
 class StorageManager(metaclass=Singleton):
 

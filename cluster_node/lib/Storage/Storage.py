@@ -3,8 +3,6 @@ import struct
 from threading import Timer
 from functools import reduce
 
-from celery import Celery
-
 from lib.Storage import StorageMapper
 from utils import Config, BaseHandler, TaskThread, Interaction
 
@@ -35,9 +33,6 @@ class Storage(BaseHandler):
         self._filed_memory = 0
         self._size = int(CF.get("Storage", "size"))
         self._seek = 0
-
-        # For test
-        self.__celery = Celery("cluster_node", broker="pyamqp://")
 
         self._node_id = None
 

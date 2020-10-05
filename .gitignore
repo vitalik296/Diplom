@@ -1,8 +1,8 @@
-**/cmake-build-debug
+*/**/cmake-build-debug
 **/.idea
 tmp
 *.a
 */**/__pycache__
 */**/storage.file
 */**/storage.db
-**/**/CMakeFiles
+*/**/CMakeFiles
