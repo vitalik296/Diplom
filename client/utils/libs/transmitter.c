@@ -4,7 +4,7 @@ typedef enum { FAILURE, SUCCESS } status;
 
 // queue item //
 
-typedef struct {
+typedef struct queue_item_T{
 //    address_t* address;
     char* ip;
     int port;

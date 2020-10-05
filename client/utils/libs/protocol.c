@@ -69,23 +69,24 @@ queue_node_t* protocol_dequeue_node(protocol_t* protocol) {
 
 // transmitter //
 
-void pack(void* package, uint32_t fd, void* data, uint32_t size, uint32_t number, uint8_t latest) {
+void pack(void* package, uint32_t fd, void* data, uint32_t size, uint32_t number) { // Remove uint8_t latest param
     size_t offset = 0;
+
     memcpy(package + offset, &fd, sizeof(fd));
-
     offset += sizeof(fd);
+
     memcpy(package + offset, &number, sizeof(number));
-
     offset += sizeof(number);
-    memcpy(package + offset, &latest, sizeof(latest));
 
-    offset += sizeof(latest);
+//    memcpy(package + offset, &latest, sizeof(latest));
+//    offset += sizeof(latest);
+
     memcpy(package + offset, &size, sizeof(size));
-
     offset += sizeof(size);
-    memcpy(package + offset, data, size);
 
+    memcpy(package + offset, data, size);
     offset = PACKAGE_SIZE - sizeof(uint16_t);
+
     uint16_t checksum = hash_function(package, offset);
     memcpy(package + offset, &checksum, sizeof(checksum));
 }
@@ -95,22 +96,15 @@ void protocol_transmit(protocol_t* protocol, uint32_t fd, void* data, uint32_t s
 
     hashtable_node_t* node = hashtable_get(hashtable, &fd, sizeof(uint32_t));
 
-    uint32_t length = 0;
+    uint32_t length;
     uint32_t offset = 0;
     uint32_t pack_num = (uint32_t) (node != NULL ? node->value : 0);
-    uint8_t latest = 0;
 
     do {
-        if (size > MAX_DATA_SIZE) {
-            length = MAX_DATA_SIZE;
-            latest = 0;
-        } else {
-            length = size;
-            latest = 1;
-        }
+        length = size > MAX_DATA_SIZE ? MAX_DATA_SIZE : size;
 
         memset(package, 0, PACKAGE_SIZE);
-        pack(package, fd, data + offset, length, pack_num, latest);
+        pack(package, fd, data + offset, length, pack_num);
         protocol_enqueue_package(protocol, package, PACKAGE_SIZE);
 
         offset += length;
@@ -134,7 +128,7 @@ status protocol_secure_sendto(protocol_t* protocol, socket_t* server, queue_node
     return FAILURE;
 }
 
-void protocol_transmitter(protocol_t* protocol) {
+void protocol_transmitter(protocol_t* protocol) { // similar to transmit in transmitter.c
     status status, answer;
     queue_node_t* node;
 

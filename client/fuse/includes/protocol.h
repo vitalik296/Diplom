@@ -9,8 +9,8 @@
 #include "libsocket.h"
 
 #define TTR 16
-#define HEADER_SIZE 16
-#define MAX_DATA_SIZE 50
+#define HEADER_SIZE 14
+#define MAX_DATA_SIZE 512
 #define PACKAGE_SIZE HEADER_SIZE+MAX_DATA_SIZE
 
 /* // HOW USE

@@ -14,25 +14,6 @@ logger_t* logger_init(char* pathname) {
     return logger;
 }
 
-/* private */
-void create_log_text(char* log_text, char* type, char* time, char* text) {
-    strcpy(log_text, type);
-    strcat(log_text, time);
-    strcat(log_text, "\t");
-    strcat(log_text, text);
-    strcat(log_text, "\n");
-}
-
-/* private */
-void create_log_error(char* log_text, char* type, char* time, char* text, char* error) {
-    strcpy(log_text, type);
-    strcat(log_text, time);
-    strcat(log_text, "\t");
-    strcat(log_text, text);
-    strcat(log_text, ": ");
-    strcat(log_text, error);
-    strcat(log_text, "\n");
-}
 
 void logger_write(logger_t* logger, char* text, log_type type) {
     char* error = strerror(errno);
@@ -46,29 +27,42 @@ void logger_write(logger_t* logger, char* text, log_type type) {
     switch (type) {
         case ERROR:
             log_type_text = "[ERROR] ";
-            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + strlen(error) + 4;
-            log_text = malloc(log_text_size);
-            create_log_error(log_text, log_type_text, time_text, text, error);
+            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + strlen(error) + 5; //+1
+            log_text = calloc(log_text_size, sizeof(char));
+            sprintf(log_text, "%s%s\t%s: %s\n", log_type_text, time_text, text, error);
             break;
         case WARNING:
             log_type_text = "[WARNING] ";
-            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + 2;
-            log_text = malloc(log_text_size);
-            create_log_text(log_text, log_type_text, time_text, text);
+            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + 3; //+1
+            log_text = calloc(log_text_size, sizeof(char));
+            sprintf(log_text, "%s%s\t%s\n", log_type_text, time_text, text);
             break;
         case INFO:
             log_type_text = "[INFO] ";
-            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + 2;
-            log_text = malloc(log_text_size);
-            create_log_text(log_text, log_type_text, time_text, text);
+            log_text_size = strlen(log_type_text) + strlen(time_text) + strlen(text) + 3; //+1
+            log_text = calloc(log_text_size, sizeof(char));
+            sprintf(log_text, "%s%s\t%s\n", log_type_text, time_text, text);
             break;
     }
 
     if (log_text != NULL) {
-        write(logger->fd, log_text, log_text_size);
+        write(logger->fd, log_text, log_text_size - 1);
     }
 
     free(log_text);
+}
+
+void logger_printf(logger_t * logger, size_t size, const char* format, ...) {
+    char* buffer = calloc(size, sizeof(char));
+
+    va_list args;
+    va_start(args, format);
+    vsprintf(buffer, format, args);
+    va_end(args);
+
+    logger_write(logger, buffer, INFO);
+
+    free(buffer);
 }
 
 void logger_free(logger_t* logger) {

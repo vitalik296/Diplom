@@ -6,7 +6,7 @@
 #include "libsocket.h"
 #include "list.h"
 #include "logger.h"
-//#include "protocol.h"
+#include "protocol.h"
 #include "queue.h"
 #include "transmitter.h"
 
